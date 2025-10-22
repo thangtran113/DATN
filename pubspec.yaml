@@ -38,12 +38,12 @@ dependencies:
   # State Management
   provider: ^6.1.1
 
-  # Firebase (Temporarily disabled - will configure after flutterfire setup)
-  # firebase_core: ^2.24.2
-  # firebase_auth: ^4.16.0
-  # cloud_firestore: ^4.14.0
-  # firebase_storage: ^11.6.0
-  # firebase_analytics: ^10.8.0
+  # Firebase
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.5.1
+  firebase_storage: ^12.3.8
+  firebase_analytics: ^11.3.8
 
   # UI/UX
   google_fonts: ^6.1.0
