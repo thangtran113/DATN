@@ -62,12 +62,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Account created successfully! Please sign in.'),
+            content: const Text(
+              'Account created successfully! Please sign in.',
+            ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
-        
+
         // Navigate to login screen
         context.go('/login');
       }
@@ -159,7 +161,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       // Title
                       Text(
                         'Create Account',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        style: Theme.of(context).textTheme.headlineLarge
+                            ?.copyWith(
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5,
                             ),
@@ -169,8 +172,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text(
                         'Join ${AppStrings.appName} today',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 48),
@@ -213,7 +216,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   : Icons.visibility_off_outlined,
                             ),
                             onPressed: () {
-                              setState(() => _obscurePassword = !_obscurePassword);
+                              setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              );
                             },
                           ),
                         ),
@@ -224,10 +229,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
-                        validator: (value) => Validators.validateConfirmPassword(
-                          value,
-                          _passwordController.text,
-                        ),
+                        validator: (value) =>
+                            Validators.validateConfirmPassword(
+                              value,
+                              _passwordController.text,
+                            ),
                         decoration: InputDecoration(
                           labelText: 'Confirm Password',
                           prefixIcon: const Icon(Icons.lock_outlined),
@@ -239,7 +245,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             onPressed: () {
                               setState(
-                                  () => _obscureConfirmPassword = !_obscureConfirmPassword);
+                                () => _obscureConfirmPassword =
+                                    !_obscureConfirmPassword,
+                              );
                             },
                           ),
                         ),
@@ -264,7 +272,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               child: Text.rich(
                                 TextSpan(
                                   text: 'I accept the ',
-                                  style: TextStyle(color: AppColors.textSecondary),
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
                                   children: [
                                     TextSpan(
                                       text: 'Terms and Conditions',
@@ -316,15 +326,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       if (!kIsWeb) ...[
                         Row(
                           children: [
-                            Expanded(child: Divider(color: AppColors.textSecondary)),
+                            Expanded(
+                              child: Divider(color: AppColors.textSecondary),
+                            ),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                               child: Text(
                                 'OR',
-                                style: TextStyle(color: AppColors.textSecondary),
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
-                            Expanded(child: Divider(color: AppColors.textSecondary)),
+                            Expanded(
+                              child: Divider(color: AppColors.textSecondary),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 24),

@@ -13,8 +13,8 @@ class AuthRepository {
     firebase_auth.FirebaseAuth? firebaseAuth,
     FirebaseFirestore? firestore,
     GoogleSignIn? googleSignIn,
-  })  : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance {
+  }) : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance {
     // Only initialize GoogleSignIn on non-web or when client ID is configured
     if (!kIsWeb) {
       _googleSignIn = googleSignIn ?? GoogleSignIn();
@@ -44,6 +44,7 @@ class AuthRepository {
     required String password,
   }) async {
     try {
+      print('🔐 Attempting login for: $email');
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -53,11 +54,32 @@ class AuthRepository {
         throw Exception('Sign in failed');
       }
 
+      print('✅ Firebase Auth login successful for UID: ${credential.user!.uid}');
+
       // Update last login time
       await _updateLastLoginTime(credential.user!.uid);
 
-      return await _getUserFromFirestore(credential.user!.uid);
+      // Get user from Firestore (will throw if not found)
+      try {
+        final user = await _getUserFromFirestore(credential.user!.uid);
+        print('✅ User document found in Firestore');
+        return user;
+      } catch (e) {
+        print('⚠️ User document not found, creating new one...');
+        // If user document doesn't exist, create it
+        final user = User(
+          id: credential.user!.uid,
+          email: email,
+          displayName: credential.user!.displayName,
+          photoUrl: credential.user!.photoURL,
+          createdAt: DateTime.now(),
+          lastLoginAt: DateTime.now(),
+        );
+        await _createUserInFirestore(user);
+        return user;
+      }
     } on firebase_auth.FirebaseAuthException catch (e) {
+      print('❌ Firebase Auth error: ${e.code} - ${e.message}');
       throw _handleAuthException(e);
     }
   }
@@ -96,7 +118,9 @@ class AuthRepository {
 
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
-      print('FirebaseAuthException during registration: ${e.code} - ${e.message}');
+      print(
+        'FirebaseAuthException during registration: ${e.code} - ${e.message}',
+      );
       throw _handleAuthException(e);
     } catch (e) {
       print('Unknown error during registration: $e');
@@ -125,7 +149,9 @@ class AuthRepository {
         idToken: googleAuth.idToken,
       );
 
-      final userCredential = await _firebaseAuth.signInWithCredential(credential);
+      final userCredential = await _firebaseAuth.signInWithCredential(
+        credential,
+      );
 
       if (userCredential.user == null) {
         throw Exception('Google sign in failed');
@@ -208,7 +234,22 @@ class AuthRepository {
   }
 
   Future<void> _createUserInFirestore(User user) async {
-    await _firestore.collection('users').doc(user.id).set(user.toJson());
+    try {
+      print('📝 Creating user document in Firestore for UID: ${user.id}');
+      await _firestore.collection('users').doc(user.id).set(user.toJson());
+      print('✅ User document created successfully');
+      
+      // Verify the document was created
+      final doc = await _firestore.collection('users').doc(user.id).get();
+      if (doc.exists) {
+        print('✅ User document verified in Firestore');
+      } else {
+        print('❌ User document not found after creation!');
+      }
+    } catch (e) {
+      print('❌ Error creating user document in Firestore: $e');
+      rethrow;
+    }
   }
 
   Future<void> _updateLastLoginTime(String uid) async {

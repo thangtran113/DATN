@@ -133,7 +133,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Title
                       Text(
                         AppStrings.appName,
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        style: Theme.of(context).textTheme.headlineLarge
+                            ?.copyWith(
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5,
                             ),
@@ -143,8 +144,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         'Sign in to continue',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 48),
@@ -176,7 +177,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : Icons.visibility_off_outlined,
                             ),
                             onPressed: () {
-                              setState(() => _obscurePassword = !_obscurePassword);
+                              setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              );
                             },
                           ),
                         ),
@@ -232,15 +235,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (!kIsWeb) ...[
                         Row(
                           children: [
-                            Expanded(child: Divider(color: AppColors.textSecondary)),
+                            Expanded(
+                              child: Divider(color: AppColors.textSecondary),
+                            ),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                               child: Text(
                                 'OR',
-                                style: TextStyle(color: AppColors.textSecondary),
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
-                            Expanded(child: Divider(color: AppColors.textSecondary)),
+                            Expanded(
+                              child: Divider(color: AppColors.textSecondary),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 24),
