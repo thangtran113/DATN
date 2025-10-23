@@ -6,6 +6,7 @@ import 'core/theme/app_theme.dart';
 import 'core/constants/app_strings.dart';
 import 'core/routes/app_router.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/movie_provider.dart';
 import 'data/repositories/auth_repository.dart';
 
 void main() async {
@@ -25,6 +26,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => MovieProvider()),
         StreamProvider(
           create: (_) => AuthRepository().userStream,
           initialData: null,

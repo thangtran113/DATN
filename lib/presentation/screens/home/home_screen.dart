@@ -63,37 +63,60 @@ class HomeScreen extends StatelessWidget {
                       CircleAvatar(
                         radius: 50,
                         backgroundColor: AppColors.primary,
-                        backgroundImage:
-                            user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
+                        backgroundImage: user?.photoUrl != null
+                            ? NetworkImage(user!.photoUrl!)
+                            : null,
                         child: user?.photoUrl == null
-                            ? const Icon(Icons.person, size: 50, color: Colors.white)
+                            ? const Icon(
+                                Icons.person,
+                                size: 50,
+                                color: Colors.white,
+                              )
                             : null,
                       ),
                       const SizedBox(height: 20),
                       Text(
                         'Welcome back!',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         user?.displayName ?? 'User',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.primary,
-                            ),
+                          color: AppColors.primary,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         user?.email ?? '',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 40),
+
+                // Browse Movies Button
+                ElevatedButton.icon(
+                  onPressed: () => context.go('/movies'),
+                  icon: const Icon(Icons.movie),
+                  label: const Text('Browse Movies'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
                 // Coming Soon Message
                 Container(
@@ -109,22 +132,22 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       Icon(
-                        Icons.movie_filter_outlined,
+                        Icons.school_outlined,
                         size: 64,
                         color: AppColors.primary,
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '🎬 Movies Coming Soon!',
+                        '📚 Learn English with Movies',
                         style: Theme.of(context).textTheme.titleLarge,
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'We are building an amazing movie learning experience for you.',
+                        'Video player with interactive subtitles coming in Week 5-6!',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
