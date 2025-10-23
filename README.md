@@ -38,31 +38,40 @@ Xem các tài liệu chi tiết:
 
 ## 📅 Tiến độ dự án
 
-### ✅ Tuần 1-2: Phân tích & Thiết kế
+### ✅ Tuần 1-2: Authentication System
 
-- Phân tích yêu cầu hệ thống
-- Thiết kế kiến trúc và database
-- Setup project cơ bản
+- ✅ Firebase Authentication (Email/Password, Google Sign-In)
+- ✅ Đăng ký, đăng nhập
+- ✅ Firestore user profile management
+- ✅ Auto-redirect flow (register → login → home)
+- ✅ Password reset functionality
 
-### 🔄 Tuần 3-4: Authentication & UI
+### ✅ Tuần 3-4: Movie Listing & Details
 
-- Đăng ký, đăng nhập
-- Giao diện chính (Home, Browse, Search)
-- Movie details screen
+- ✅ Movie entity & repository
+- ✅ Movie listing page (grid layout)
+- ✅ Search & filter by level (Beginner/Intermediate/Advanced)
+- ✅ Movie detail page
+- ✅ Watchlist & Favorites management
+- ✅ Popular movies section
+- ✅ Lazy loading & infinite scroll
 
-### ⏳ Tuần 5-7: Core Features
+### ⏳ Tuần 5-6: Video Player & Interactive Subtitles
 
-- Video player với phụ đề song ngữ
-- Dictionary integration
-- Vocabulary management
-- Comments & ratings
+- Video player integration (video_player package)
+- Bilingual subtitle display (EN-VI)
+- Clickable words for dictionary lookup
+- Auto-pause feature
+- Playback speed control
+- Progress tracking
 
-### ⏳ Tuần 8-10: Advanced & Deploy
+### ⏳ Tuần 7-8: Vocabulary Learning & SRS
 
-- Recommendation system
-- Admin panel
-- Testing
-- Deployment
+- Dictionary API integration (Free Dictionary API + MyMemory Translation)
+- Vocabulary saving & management
+- Flashcard review system (Spaced Repetition)
+- Learning statistics
+- Word pronunciation
 
 ## 🛠️ Tech Stack
 
@@ -84,15 +93,61 @@ lib/
 ## 🚀 Run app
 
 ```bash
-# Web
+# Web (Recommended for this project)
 flutter run -d chrome
 
-# Android
-flutter run -d android
-
-# iOS
-flutter run -d ios
+# Check available devices
+flutter devices
 ```
+
+## 📊 Adding Sample Movies
+
+### Option 1: Firebase Console (Quick & Easy)
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select project: `cinechill-dev`
+3. Navigate to **Firestore Database** → **movies** collection
+4. Click **Add document** and use this structure:
+
+```json
+{
+  "title": "The Shawshank Redemption",
+  "description": "Two imprisoned men bond over years...",
+  "posterUrl": "https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
+  "backdropUrl": "https://image.tmdb.org/t/p/w1280/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg",
+  "duration": 142,
+  "level": "intermediate",
+  "genres": ["Drama", "Crime"],
+  "languages": ["en", "vi"],
+  "rating": 9.3,
+  "year": 1994,
+  "cast": ["Tim Robbins", "Morgan Freeman"],
+  "director": "Frank Darabont",
+  "viewCount": 0,
+  "createdAt": "2025-10-23T10:00:00.000Z",
+  "updatedAt": "2025-10-23T10:00:00.000Z"
+}
+```
+
+### Option 2: Use Seed Script
+
+See `lib/data/seed_data.dart` for 8 pre-configured sample movies.
+
+## 📁 Firestore Collections
+
+### `users/{uid}`
+
+- displayName, email, photoUrl
+- createdAt, lastLoginAt
+- watchlist[], favorites[]
+- preferences: {bilingual, autoPause, speed, fontSize}
+
+### `movies/{movieId}`
+
+- title, description, posterUrl, backdropUrl
+- duration, level, genres[], languages[]
+- rating, year, cast[], director
+- viewCount, createdAt, updatedAt
 
 ## Getting Started (Flutter Default)
 

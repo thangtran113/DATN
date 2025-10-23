@@ -69,11 +69,13 @@ class User {
       lastLoginAt: json['lastLoginAt'] != null
           ? DateTime.parse(json['lastLoginAt'] as String)
           : null,
-      favoriteMovieIds: (json['favoriteMovieIds'] as List<dynamic>?)
+      favoriteMovieIds:
+          (json['favoriteMovieIds'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
-      watchlistIds: (json['watchlistIds'] as List<dynamic>?)
+      watchlistIds:
+          (json['watchlistIds'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
