@@ -7,11 +7,25 @@ service cloud.firestore {
       // Allow users to read their own profile
       allow read: if request.auth != null && request.auth.uid == userId;
       
+      // Allow anyone to query users by username (for login lookup)
+      // Limit to 1 result to prevent abuse
+      allow list: if request.query.limit == 1;
+      
       // Allow users to create their own profile during registration
-      allow create: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['id', 'username', 'email', 'createdAt'])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 3
+        && request.resource.data.email is string
+        && request.resource.data.email == request.auth.token.email;
       
       // Allow users to update their own profile
-      allow update: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.username == resource.data.username;
       
       // Don't allow delete
       allow delete: if false;
@@ -19,7 +33,7 @@ service cloud.firestore {
     
     // Movies collection - read only for authenticated users
     match /movies/{movieId} {
-      allow read: if request.auth != null;
+      allow read: if true; // Allow public read for movies
       allow write: if false; // Only admin can write
     }
     
