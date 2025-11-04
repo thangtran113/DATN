@@ -1,40 +1,95 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/auth/register_screen.dart';
-import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/movie/movie_list_screen.dart';
 import '../../presentation/screens/movie/movie_detail_screen.dart';
+import '../../presentation/screens/movie/search_screen.dart';
+import '../../presentation/screens/player/video_player_screen.dart';
+import '../../presentation/screens/splash/splash_screen.dart';
 
 class AppRouter {
+  // Custom page transition builder for smooth animations
+  static CustomTransitionPage _buildPageWithFadeTransition({
+    required Widget child,
+    required GoRouterState state,
+  }) {
+    return CustomTransitionPage(
+      key: state.pageKey,
+      child: child,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 300),
+    );
+  }
+
   static GoRouter router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/',
     routes: [
+      GoRoute(
+        path: '/',
+        name: 'splash',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          child: const SplashScreen(),
+          state: state,
+        ),
+      ),
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          child: const LoginScreen(),
+          state: state,
+        ),
       ),
       GoRoute(
         path: '/register',
         name: 'register',
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          child: const RegisterScreen(),
+          state: state,
+        ),
       ),
       GoRoute(
         path: '/home',
         name: 'home',
-        builder: (context, state) => const HomeScreen(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          child: const MovieListScreen(),
+          state: state,
+        ),
       ),
       GoRoute(
-        path: '/movies',
-        name: 'movies',
-        builder: (context, state) => const MovieListScreen(),
-      ),
-      GoRoute(
-        path: '/movies/:id',
+        path: '/home/:id',
         name: 'movie-detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final movieId = state.pathParameters['id']!;
-          return MovieDetailScreen(movieId: movieId);
+          return _buildPageWithFadeTransition(
+            child: MovieDetailScreen(movieId: movieId),
+            state: state,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/search',
+        name: 'search',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          child: const SearchScreen(),
+          state: state,
+        ),
+      ),
+      GoRoute(
+        path: '/player/:id',
+        name: 'player',
+        pageBuilder: (context, state) {
+          final movieId = state.pathParameters['id']!;
+          return _buildPageWithFadeTransition(
+            child: VideoPlayerScreen(movieId: movieId),
+            state: state,
+          );
         },
       ),
     ],

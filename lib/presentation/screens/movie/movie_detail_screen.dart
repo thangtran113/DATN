@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../domain/entities/movie.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../player/video_player_screen.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final String movieId;
@@ -13,6 +16,9 @@ class MovieDetailScreen extends StatefulWidget {
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
+  List<Movie> relatedMovies = [];
+  bool isLoadingRelated = false;
+
   @override
   void initState() {
     super.initState();
@@ -24,7 +30,32 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         movieProvider.fetchWatchlist(authProvider.user!.id);
         movieProvider.fetchFavorites(authProvider.user!.id);
       }
+      _loadRelatedMovies();
     });
+  }
+
+  Future<void> _loadRelatedMovies() async {
+    setState(() => isLoadingRelated = true);
+    try {
+      final movieProvider = Provider.of<MovieProvider>(context, listen: false);
+      final currentMovie = movieProvider.selectedMovie;
+      if (currentMovie != null && currentMovie.genres.isNotEmpty) {
+        final movies = await movieProvider.fetchMoviesByGenre(
+          currentMovie.genres.first,
+          limit: 6,
+        );
+        setState(() {
+          relatedMovies = movies
+              .where((m) => m.id != widget.movieId)
+              .take(5)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading related movies: $e');
+    } finally {
+      setState(() => isLoadingRelated = false);
+    }
   }
 
   @override
@@ -35,9 +66,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         builder: (context, movieProvider, authProvider, child) {
           if (movieProvider.isLoading) {
             return const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFFE50914),
-              ),
+              child: CircularProgressIndicator(color: Color(0xFFE50914)),
             );
           }
 
@@ -92,8 +121,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              const Color(0xFF0F0F0F).withOpacity(0.7),
-                              const Color(0xFF0F0F0F),
+                              AppColors.background.withAlpha(179),
+                              AppColors.background,
                             ],
                           ),
                         ),
@@ -126,7 +155,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         children: [
                           Text(
                             movie.year.toString(),
-                            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 14,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Container(
@@ -150,14 +182,24 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           const SizedBox(width: 16),
                           Text(
                             movie.formattedDuration,
-                            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 14,
+                            ),
                           ),
                           const SizedBox(width: 16),
-                          const Icon(Icons.star, color: Color(0xFFFFD700), size: 18),
+                          const Icon(
+                            Icons.star,
+                            color: Color(0xFFFFD700),
+                            size: 18,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             movie.rating.toStringAsFixed(1),
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
@@ -169,10 +211,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                // TODO: Navigate to player
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Player coming soon in Week 5-6!'),
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        VideoPlayerScreen(movieId: movie.id),
                                   ),
                                 );
                               },
@@ -181,7 +223,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFE50914),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -197,7 +241,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               isInWatchlist,
                             ),
                             icon: Icon(
-                              isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
+                              isInWatchlist
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border,
                             ),
                             color: Colors.white,
                             style: IconButton.styleFrom(
@@ -213,7 +259,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               isInFavorites,
                             ),
                             icon: Icon(
-                              isInFavorites ? Icons.favorite : Icons.favorite_border,
+                              isInFavorites
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
                             ),
                             color: Colors.white,
                             style: IconButton.styleFrom(
@@ -312,10 +360,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       const SizedBox(height: 8),
                       Text(
                         movie.director,
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
                       ),
                       const SizedBox(height: 24),
 
@@ -339,6 +384,160 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           );
                         }).toList(),
                       ),
+                      const SizedBox(height: 24),
+
+                      // Stats
+                      Row(
+                        children: [
+                          _buildStatItem(
+                            Icons.visibility_outlined,
+                            '${movie.viewCount} views',
+                          ),
+                          const SizedBox(width: 24),
+                          _buildStatItem(
+                            Icons.calendar_today_outlined,
+                            'Added ${_getTimeAgo(movie.createdAt)}',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Related Movies
+                      if (relatedMovies.isNotEmpty) ...[
+                        const Text(
+                          'More Like This',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 200,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: relatedMovies.length,
+                            itemBuilder: (context, index) {
+                              final relatedMovie = relatedMovies[index];
+                              return Container(
+                                width: 140,
+                                margin: const EdgeInsets.only(right: 12),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (context) => MovieDetailScreen(
+                                          movieId: relatedMovie.id,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(
+                                          relatedMovie.posterUrl,
+                                          height: 150,
+                                          width: 140,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Container(
+                                                  height: 150,
+                                                  color: const Color(
+                                                    0xFF1A1A1A,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.movie,
+                                                    color: Colors.grey,
+                                                    size: 40,
+                                                  ),
+                                                );
+                                              },
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        relatedMovie.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+
+                      // Comments Section (Preview)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Comments & Reviews',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Comments feature coming in Week 6-7!',
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'View All',
+                              style: TextStyle(color: Color(0xFF00BCD4)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A1A),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.chat_bubble_outline,
+                              color: Colors.grey,
+                              size: 40,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                'Be the first to comment on this movie!',
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
@@ -348,6 +547,35 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         },
       ),
     );
+  }
+
+  Widget _buildStatItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.grey[600], size: 18),
+        const SizedBox(width: 6),
+        Text(text, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+      ],
+    );
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 365) {
+      final years = (difference.inDays / 365).floor();
+      return '$years ${years == 1 ? 'year' : 'years'} ago';
+    } else if (difference.inDays > 30) {
+      final months = (difference.inDays / 30).floor();
+      return '$months ${months == 1 ? 'month' : 'months'} ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else {
+      return 'Just now';
+    }
   }
 
   Color _getLevelColor(String level) {
@@ -370,28 +598,28 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     bool isInWatchlist,
   ) async {
     if (authProvider.user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login first')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please login first')));
       return;
     }
 
     try {
       if (isInWatchlist) {
         await movieProvider.removeFromWatchlist(authProvider.user!.id, movieId);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Removed from watchlist')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Removed from watchlist')));
       } else {
         await movieProvider.addToWatchlist(authProvider.user!.id, movieId);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Added to watchlist')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Added to watchlist')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -402,28 +630,28 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     bool isInFavorites,
   ) async {
     if (authProvider.user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login first')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please login first')));
       return;
     }
 
     try {
       if (isInFavorites) {
         await movieProvider.removeFromFavorites(authProvider.user!.id, movieId);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Removed from favorites')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Removed from favorites')));
       } else {
         await movieProvider.addToFavorites(authProvider.user!.id, movieId);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Added to favorites')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Added to favorites')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 }

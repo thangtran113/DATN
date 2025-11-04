@@ -42,13 +42,15 @@ class MovieProvider with ChangeNotifier {
 
     try {
       final fetchedMovies = await _movieRepository.getMovies(limit: 20);
-      
+
       if (loadMore) {
         // Check for duplicates before adding
         final existingIds = _movies.map((m) => m.id).toSet();
-        final newMovies = fetchedMovies.where((m) => !existingIds.contains(m.id)).toList();
+        final newMovies = fetchedMovies
+            .where((m) => !existingIds.contains(m.id))
+            .toList();
         _movies.addAll(newMovies);
-        
+
         // If no new movies, we've reached the end
         if (newMovies.isEmpty) {
           print('📭 No more movies to load');
@@ -121,6 +123,12 @@ class MovieProvider with ChangeNotifier {
     }
   }
 
+  // Clear search results
+  void clearSearch() {
+    _searchResults = [];
+    notifyListeners();
+  }
+
   // Filter by genre
   Future<void> filterByGenre(String genre) async {
     _isLoading = true;
@@ -133,6 +141,16 @@ class MovieProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // Fetch movies by genre (without changing _movies state)
+  Future<List<Movie>> fetchMoviesByGenre(String genre, {int limit = 20}) async {
+    try {
+      return await _movieRepository.getMoviesByGenre(genre, limit: limit);
+    } catch (e) {
+      print('Error fetching movies by genre: $e');
+      return [];
     }
   }
 
@@ -223,12 +241,6 @@ class MovieProvider with ChangeNotifier {
   // Check if movie is in favorites
   bool isInFavorites(String movieId) {
     return _favorites.any((movie) => movie.id == movieId);
-  }
-
-  // Clear search results
-  void clearSearch() {
-    _searchResults = [];
-    notifyListeners();
   }
 
   // Clear selected movie

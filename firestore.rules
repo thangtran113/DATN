@@ -34,7 +34,9 @@ service cloud.firestore {
     // Movies collection - read only for authenticated users
     match /movies/{movieId} {
       allow read: if true; // Allow public read for movies
-      allow write: if false; // Only admin can write
+      allow create, delete: if false; // Only admin can create/delete
+      // Allow update for viewCount increment only
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount', 'updatedAt']);
     }
     
     // User progress collection
