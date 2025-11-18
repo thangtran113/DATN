@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_animations.dart';
 import '../../providers/vocabulary_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../../domain/entities/saved_word.dart';
@@ -284,125 +285,23 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
   }
 
   Widget _buildEmptyState() {
-    return SingleChildScrollView(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-            // Illustration container
-            Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFFE50914).withOpacity(0.2),
-                    const Color(0xFFB20710).withOpacity(0.1),
-                  ],
-                ),
-              ),
-              child: const Icon(
-                Icons.book_outlined,
-                size: 80,
-                color: Color(0xFFE50914),
-              ),
-            ),
-            const SizedBox(height: 32),
-            
-            // Title
-            const Text(
-              'Chưa có từ vựng nào',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Description
-            Text(
-              'Bắt đầu xem phim và lưu các từ mới\nđể xây dựng vốn từ vựng của bạn!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 15,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 40),
-            
-            // CTA Button
-            ElevatedButton.icon(
-              onPressed: () => context.go('/home'),
-              icon: const Icon(Icons.movie, size: 20),
-              label: const Text(
-                'Khám phá phim',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE50914),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 4,
-                shadowColor: const Color(0xFFE50914).withOpacity(0.5),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Secondary info
-            Container(
-              margin: const EdgeInsets.only(top: 24),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.grey[800]!,
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.tips_and_updates,
-                    color: Color(0xFFFFB800),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Text(
-                      'Mẹo: Click vào từ trong phụ đề để lưu',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.book_outlined, size: 80, color: Colors.grey[600]),
+          const SizedBox(height: 16),
+          Text(
+            'Chưa có từ vựng nào',
+            style: TextStyle(color: Colors.grey[400], fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Hãy xem phim và lưu từ mới!',
+            style: TextStyle(color: Colors.grey[500], fontSize: 14),
+          ),
+        ],
       ),
-    ),
     );
   }
 
@@ -412,7 +311,11 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
       itemCount: provider.vocabulary.length,
       itemBuilder: (context, index) {
         final word = provider.vocabulary[index];
-        return _buildWordCard(word, provider);
+        // Add staggered animation to vocabulary cards
+        return SlideInFromBottom(
+          delay: Duration(milliseconds: 30 * (index % 10)),
+          child: _buildWordCard(word, provider),
+        );
       },
     );
   }
@@ -425,16 +328,16 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
       ),
     );
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return AnimatedCard(
+      onTap: () => _showWordDetail(word, provider),
       color: const Color(0xFF1E1E1E),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: masteryColor.withValues(alpha: 0.3), width: 1),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _showWordDetail(word, provider),
+      borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.all(16),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: masteryColor.withValues(alpha: 0.3), width: 1),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

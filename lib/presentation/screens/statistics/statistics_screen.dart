@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import 'dart:math' as math;
+import '../../../core/constants/app_animations.dart';
 import '../../providers/vocabulary_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../../domain/entities/saved_word.dart';
@@ -49,12 +49,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             );
           }
 
-          final totalWords = provider.statistics['totalWords'] ?? 0;
-          
-          if (totalWords == 0) {
-            return _buildEmptyState();
-          }
-          
           return RefreshIndicator(
             onRefresh: _loadData,
             color: const Color(0xFFE50914),
@@ -65,29 +59,50 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Overview cards
-                  _buildOverviewCards(provider),
+                  // Overview cards with animation
+                  FadeInWidget(
+                    duration: const Duration(milliseconds: 500),
+                    child: _buildOverviewCards(provider),
+                  ),
 
                   const SizedBox(height: 24),
 
                   // Mastery level distribution
-                  _buildSectionTitle('Phân Bố Trình Độ'),
+                  SlideInFromBottom(
+                    delay: const Duration(milliseconds: 200),
+                    child: _buildSectionTitle('Phân Bố Trình Độ'),
+                  ),
                   const SizedBox(height: 16),
-                  _buildMasteryDistribution(provider),
+                  SlideInFromBottom(
+                    delay: const Duration(milliseconds: 300),
+                    child: _buildMasteryDistribution(provider),
+                  ),
 
                   const SizedBox(height: 24),
 
                   // Progress chart
-                  _buildSectionTitle('Tiến Độ Học Tập'),
+                  SlideInFromBottom(
+                    delay: const Duration(milliseconds: 400),
+                    child: _buildSectionTitle('Tiến Độ Học Tập'),
+                  ),
                   const SizedBox(height: 16),
-                  _buildProgressChart(provider),
+                  SlideInFromBottom(
+                    delay: const Duration(milliseconds: 500),
+                    child: _buildProgressChart(provider),
+                  ),
 
                   const SizedBox(height: 24),
 
                   // Learning insights
-                  _buildSectionTitle('Thông Tin Chi Tiết'),
+                  SlideInFromBottom(
+                    delay: const Duration(milliseconds: 600),
+                    child: _buildSectionTitle('Thông Tin Chi Tiết'),
+                  ),
                   const SizedBox(height: 16),
-                  _buildInsights(provider),
+                  SlideInFromBottom(
+                    delay: const Duration(milliseconds: 700),
+                    child: _buildInsights(provider),
+                  ),
                 ],
               ),
             ),
@@ -153,40 +168,44 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     required String value,
     required Color color,
   }) {
-    return Container(
+    return AnimatedCard(
+      color: const Color(0xFF1E1E1E),
+      borderRadius: BorderRadius.circular(16),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [const Color(0xFF1E1E1E), color.withValues(alpha: 0.1)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Icon(icon, color: color, size: 32),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                label,
-                style: TextStyle(color: Colors.grey[400], fontSize: 12),
-              ),
-            ],
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [const Color(0xFF1E1E1E), color.withValues(alpha: 0.1)],
           ),
-        ],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(icon, color: color, size: 32),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -557,148 +576,4 @@ class PieChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-extension on _StatisticsScreenState {
-  Widget _buildEmptyState() {
-    return SingleChildScrollView(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-            // Illustration
-            Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF6366F1).withOpacity(0.2),
-                    const Color(0xFF8B5CF6).withOpacity(0.1),
-                  ],
-                ),
-              ),
-              child: const Icon(
-                Icons.insert_chart_outlined,
-                size: 70,
-                color: Color(0xFF8B5CF6),
-              ),
-            ),
-            const SizedBox(height: 32),
-            
-            // Title
-            const Text(
-              'Chưa có dữ liệu thống kê',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Description
-            Text(
-              'Bắt đầu học từ vựng để xem\ntiến độ và thống kê của bạn',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 15,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 40),
-            
-            // Action buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () => context.go('/home'),
-                  icon: const Icon(Icons.movie, size: 20),
-                  label: const Text('Xem phim'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE50914),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/vocabulary'),
-                  icon: const Icon(Icons.book, size: 20),
-                  label: const Text('Từ vựng'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.grey),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Info box
-            Container(
-              margin: const EdgeInsets.only(top: 24),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.grey[800]!,
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.lightbulb_outline,
-                        color: Color(0xFFFFB800),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          'Lưu từ khi xem phim để bắt đầu',
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-    );
-  }
 }

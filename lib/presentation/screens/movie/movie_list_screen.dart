@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_design_system.dart';
+import '../../../core/constants/app_animations.dart';
 import '../../providers/movie_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_footer.dart';
@@ -190,7 +191,11 @@ class _MovieListScreenState extends State<MovieListScreen> {
                             index,
                           ) {
                             final movie = movieProvider.movies[index];
-                            return _buildRoPhimCard(movie);
+                            // Add staggered animation to movie cards
+                            return SlideInFromBottom(
+                              delay: Duration(milliseconds: 50 * (index % 10)),
+                              child: _buildRoPhimCard(movie),
+                            );
                           }, childCount: movieProvider.movies.length),
                         ),
                       ),
@@ -390,11 +395,13 @@ class _MovieListScreenState extends State<MovieListScreen> {
   }
 
   Widget _buildRoPhimCard(movie) {
-    return GestureDetector(
+    return AnimatedCard(
       onTap: () => context.push('/home/${movie.id}'),
+      color: AppColors.backgroundCard,
+      borderRadius: AppRadius.radiusMD,
+      padding: EdgeInsets.zero,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.backgroundCard,
           borderRadius: AppRadius.radiusMD,
           border: Border.all(
             color: AppColors.textTertiary.withAlpha(51),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_animations.dart';
 import '../../providers/vocabulary_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../../domain/entities/saved_word.dart';
@@ -215,88 +216,59 @@ class _FlashcardScreenState extends State<FlashcardScreen>
           ? _buildEmptyState()
           : Column(
               children: [
-                // Progress bar với số
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  color: const Color(0xFF1A1A1A),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Tiến độ',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            '${_currentIndex + 1} / ${_reviewWords.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: (_currentIndex + 1) / _reviewWords.length,
-                          backgroundColor: Colors.grey[800],
-                          color: const Color(0xFFE50914),
-                          minHeight: 6,
-                        ),
-                      ),
-                    ],
+                // Progress bar
+                FadeInWidget(
+                  duration: const Duration(milliseconds: 400),
+                  child: LinearProgressIndicator(
+                    value: (_currentIndex + 1) / _reviewWords.length,
+                    backgroundColor: Colors.grey[800],
+                    color: const Color(0xFFE50914),
+                    minHeight: 4,
                   ),
                 ),
 
-                Expanded(child: Center(child: _buildFlashcard())),
-
-                // Action buttons
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.3),
-                      ],
+                Expanded(
+                  child: Center(
+                    child: ScaleInAnimation(
+                      delay: const Duration(milliseconds: 200),
+                      child: _buildFlashcard(),
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Quên
-                      _buildActionButton(
-                        icon: Icons.close,
-                        label: 'Quên',
-                        color: const Color(0xFFEF4444),
-                        onPressed: _showBack ? _onSwipeLeft : null,
-                      ),
+                ),
 
-                      // Lật thẻ
-                      _buildActionButton(
-                        icon: _showBack ? Icons.refresh : Icons.visibility,
-                        label: 'Lật thẻ',
-                        color: const Color(0xFF3B82F6),
-                        onPressed: _flipCard,
-                      ),
+                // Action buttons with animation
+                SlideInFromBottom(
+                  delay: const Duration(milliseconds: 400),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Chưa biết
+                        _buildActionButton(
+                          icon: Icons.close,
+                          label: 'Chưa biết',
+                          color: Colors.red,
+                          onPressed: _onSwipeLeft,
+                        ),
 
-                      // Nhớ
-                      _buildActionButton(
-                        icon: Icons.check,
-                        label: 'Nhớ',
-                        color: const Color(0xFF10B981),
-                        onPressed: _showBack ? _onSwipeRight : null,
-                      ),
-                    ],
+                        // Lật thẻ
+                        _buildActionButton(
+                          icon: Icons.flip,
+                          label: 'Lật thẻ',
+                          color: Colors.blue,
+                          onPressed: _flipCard,
+                        ),
+
+                        // Đã biết
+                        _buildActionButton(
+                          icon: Icons.check,
+                          label: 'Đã biết',
+                          color: Colors.green,
+                          onPressed: _onSwipeRight,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -305,115 +277,23 @@ class _FlashcardScreenState extends State<FlashcardScreen>
   }
 
   Widget _buildEmptyState() {
-    return SingleChildScrollView(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-            // Icon với animation
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF4CAF50).withOpacity(0.2),
-                    const Color(0xFF2E7D32).withOpacity(0.1),
-                  ],
-                ),
-              ),
-              child: const Icon(
-                Icons.check_circle_outline,
-                size: 64,
-                color: Color(0xFF4CAF50),
-              ),
-            ),
-            const SizedBox(height: 32),
-            
-            // Title
-            const Text(
-              '🎉 Tuyệt vời!',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Subtitle
-            Text(
-              'Không có từ nào cần ôn tập ngay bây giờ',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 8),
-            
-            Text(
-              'Hãy xem phim và lưu từ mới để bắt đầu học!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 40),
-            
-            // Action buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Về danh sách từ vựng
-                ElevatedButton.icon(
-                  onPressed: () => context.go('/vocabulary'),
-                  icon: const Icon(Icons.list),
-                  label: const Text('Xem từ vựng'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2A2A2A),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                
-                // Về trang chủ để xem phim
-                ElevatedButton.icon(
-                  onPressed: () => context.go('/home'),
-                  icon: const Icon(Icons.movie),
-                  label: const Text('Xem phim'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE50914),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle_outline, size: 80, color: Colors.grey[600]),
+          const SizedBox(height: 16),
+          Text(
+            'Không có từ nào cần ôn tập',
+            style: TextStyle(color: Colors.grey[400], fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Hãy thêm từ vựng để bắt đầu học!',
+            style: TextStyle(color: Colors.grey[500], fontSize: 14),
+          ),
+        ],
       ),
-    ),
     );
   }
 
@@ -621,46 +501,19 @@ class _FlashcardScreenState extends State<FlashcardScreen>
     required IconData icon,
     required String label,
     required Color color,
-    required VoidCallback? onPressed,
+    required VoidCallback onPressed,
   }) {
-    final isDisabled = onPressed == null;
-    
-    return Opacity(
-      opacity: isDisabled ? 0.4 : 1.0,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: isDisabled
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: color.withOpacity(0.3),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                    ],
-            ),
-            child: FloatingActionButton(
-              onPressed: onPressed,
-              backgroundColor: color,
-              elevation: isDisabled ? 0 : 6,
-              child: Icon(icon, size: 28, color: Colors.white),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: TextStyle(
-              color: isDisabled ? Colors.grey[600] : Colors.grey[300],
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FloatingActionButton(
+          onPressed: onPressed,
+          backgroundColor: color,
+          child: Icon(icon, size: 32),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+      ],
     );
   }
 }
