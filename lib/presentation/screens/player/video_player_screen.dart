@@ -46,10 +46,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   List<Subtitle> _subtitles = [];
   Subtitle? _currentSubtitle;
   final bool _showSubtitles = true;
+  bool _showSubtitleList = false; // 🆕 Show/hide subtitle list panel
   final _subtitleRepository = SubtitleRepository();
 
   // Dictionary
   final _dictionaryService = DictionaryService();
+
+  // 🆕 A-B Loop
+  Duration? _loopPointA;
+  Duration? _loopPointB;
+  bool _isLooping = false;
+  Timer? _loopTimer;
+
+  // 🆕 Playback Speed
+  double _playbackSpeed = 1.0;
+  final List<double> _speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+  // 🆕 Bookmarked sentences
+  final List<Subtitle> _bookmarkedSubtitles = [];
 
   @override
   void initState() {
@@ -254,6 +268,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void dispose() {
     _hideControlsTimer?.cancel();
     _syncTimer?.cancel();
+    _loopTimer?.cancel(); // 🆕 Cancel loop timer
     _videoController?.dispose();
     _focusNode.dispose();
     SystemChrome.setPreferredOrientations([
@@ -262,6 +277,188 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
+  }
+
+  // 🆕 ============ A-B LOOP METHODS ============
+
+  void _setLoopPointA() {
+    setState(() {
+      _loopPointA = _currentPosition;
+      if (_loopPointB != null && _loopPointA! >= _loopPointB!) {
+        _loopPointB = null; // Reset B if A is after B
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Loop Point A set at ${_formatDuration(_currentPosition)}'),
+        duration: const Duration(seconds: 1),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _setLoopPointB() {
+    if (_loopPointA == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please set Point A first'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_currentPosition <= _loopPointA!) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Point B must be after Point A'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _loopPointB = _currentPosition;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Loop Point B set at ${_formatDuration(_currentPosition)}'),
+        duration: const Duration(seconds: 1),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _toggleLoop() {
+    if (_loopPointA == null || _loopPointB == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please set both Point A and Point B'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLooping = !_isLooping;
+    });
+
+    if (_isLooping) {
+      _startLoopTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A-B Loop enabled'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } else {
+      _loopTimer?.cancel();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A-B Loop disabled'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.grey,
+        ),
+      );
+    }
+  }
+
+  void _startLoopTimer() {
+    _loopTimer?.cancel();
+    _loopTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (_videoController != null && _isLooping && _loopPointA != null && _loopPointB != null) {
+        final position = _videoController!.value.position;
+        if (position >= _loopPointB!) {
+          _videoController!.seekTo(_loopPointA!);
+        }
+      }
+    });
+  }
+
+  void _clearLoop() {
+    setState(() {
+      _loopPointA = null;
+      _loopPointB = null;
+      _isLooping = false;
+    });
+    _loopTimer?.cancel();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Loop cleared'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+  // 🆕 ============ SPEED CONTROL METHODS ============
+
+  void _changePlaybackSpeed(double speed) {
+    if (_videoController == null) return;
+    
+    setState(() {
+      _playbackSpeed = speed;
+    });
+    
+    _videoController!.setPlaybackSpeed(speed);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Playback speed: ${speed}x'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  // 🆕 ============ SUBTITLE JUMP METHODS ============
+
+  void _jumpToSubtitle(Subtitle subtitle) {
+    if (_videoController == null) return;
+    
+    _videoController!.seekTo(subtitle.startTime);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Jumped to: ${subtitle.textEn}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  // 🆕 ============ BOOKMARK METHODS ============
+
+  void _toggleBookmark(Subtitle subtitle) {
+    setState(() {
+      final index = _bookmarkedSubtitles.indexWhere((s) => s.startTime == subtitle.startTime);
+      if (index >= 0) {
+        _bookmarkedSubtitles.removeAt(index);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bookmark removed'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.grey,
+          ),
+        );
+      } else {
+        _bookmarkedSubtitles.add(subtitle);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bookmark added'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+    });
+  }
+
+  bool _isBookmarked(Subtitle subtitle) {
+    return _bookmarkedSubtitles.any((s) => s.startTime == subtitle.startTime);
   }
 
   void _togglePlayPause() {
@@ -911,63 +1108,179 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                // Time
-                                Text(
-                                  '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                // 🆕 A-B Loop Controls + Time
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      // Set Point A button
+                                      IconButton(
+                                        icon: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: _loopPointA != null
+                                                ? const Color(0xFFE50914)
+                                                : Colors.white24,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'A',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        onPressed: _setLoopPointA,
+                                        tooltip: 'Set Loop Point A',
+                                      ),
+                                      
+                                      // Set Point B button
+                                      IconButton(
+                                        icon: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: _loopPointB != null
+                                                ? const Color(0xFFE50914)
+                                                : Colors.white24,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'B',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        onPressed: _setLoopPointB,
+                                        tooltip: 'Set Loop Point B',
+                                      ),
+                                      
+                                      // Loop toggle button
+                                      IconButton(
+                                        icon: Icon(
+                                          _isLooping
+                                              ? Icons.repeat_on
+                                              : Icons.repeat,
+                                          color: _isLooping
+                                              ? const Color(0xFFE50914)
+                                              : Colors.white,
+                                          size: 20,
+                                        ),
+                                        onPressed: (_loopPointA != null && _loopPointB != null)
+                                            ? _toggleLoop
+                                            : null,
+                                        tooltip: 'Toggle A-B Loop',
+                                      ),
+                                      
+                                      // Clear loop button
+                                      if (_loopPointA != null || _loopPointB != null)
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.clear,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          onPressed: _clearLoop,
+                                          tooltip: 'Clear Loop',
+                                        ),
+                                      
+                                      const SizedBox(width: 8),
+                                      
+                                      // Time
+                                      Text(
+                                        '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
 
                                 // Right controls
                                 Row(
                                   children: [
-                                    // Subtitles button
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.closed_caption,
-                                        color: Colors.white,
-                                        size: 24,
-                                      ),
-                                      onPressed: () {
-                                        // Chức năng toggle phụ đề - sẽ implement sau
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Cài đặt phụ đề - Sắp ra mắt!',
+                                    // 🆕 Speed Control
+                                    PopupMenuButton<double>(
+                                      icon: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${_playbackSpeed}x',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
                                             ),
-                                            duration: Duration(seconds: 1),
                                           ),
-                                        );
+                                          const Icon(
+                                            Icons.arrow_drop_down,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ],
+                                      ),
+                                      color: Colors.black87,
+                                      onSelected: _changePlaybackSpeed,
+                                      itemBuilder: (context) {
+                                        return _speedOptions.map((speed) {
+                                          return PopupMenuItem<double>(
+                                            value: speed,
+                                            child: Row(
+                                              children: [
+                                                if (speed == _playbackSpeed)
+                                                  const Icon(
+                                                    Icons.check,
+                                                    color: Color(0xFFE50914),
+                                                    size: 18,
+                                                  )
+                                                else
+                                                  const SizedBox(width: 18),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  '${speed}x',
+                                                  style: TextStyle(
+                                                    color: speed == _playbackSpeed
+                                                        ? const Color(0xFFE50914)
+                                                        : Colors.white,
+                                                    fontWeight: speed == _playbackSpeed
+                                                        ? FontWeight.bold
+                                                        : FontWeight.normal,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList();
                                       },
                                     ),
                                     const SizedBox(width: 8),
-                                    // Settings button
+                                    
+                                    // 🆕 Subtitle List Toggle
                                     IconButton(
-                                      icon: const Icon(
-                                        Icons.settings,
-                                        color: Colors.white,
+                                      icon: Icon(
+                                        _showSubtitleList
+                                            ? Icons.list
+                                            : Icons.list_outlined,
+                                        color: _showSubtitleList
+                                            ? const Color(0xFFE50914)
+                                            : Colors.white,
                                         size: 24,
                                       ),
                                       onPressed: () {
-                                        // Chức năng cài đặt (chất lượng, tốc độ) - sẽ implement sau
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Cài đặt - Sắp ra mắt!',
-                                            ),
-                                            duration: Duration(seconds: 1),
-                                          ),
-                                        );
+                                        setState(() {
+                                          _showSubtitleList = !_showSubtitleList;
+                                        });
                                       },
+                                      tooltip: 'Subtitle List',
                                     ),
                                     const SizedBox(width: 8),
+                                    
                                     // Fullscreen button
                                     IconButton(
                                       icon: Icon(
@@ -993,6 +1306,162 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 if (_isSeeking)
                   const Center(
                     child: CircularProgressIndicator(color: Color(0xFFE50914)),
+                  ),
+
+                // 🆕 Subtitle List Panel
+                if (_showSubtitleList)
+                  Positioned(
+                    right: 0,
+                    top: 80,
+                    bottom: 180,
+                    width: 400,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.9),
+                        border: Border(
+                          left: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          // Header
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE50914).withValues(alpha: 0.2),
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Subtitles',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() => _showSubtitleList = false);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Subtitle list
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: _subtitles.length,
+                              itemBuilder: (context, index) {
+                                final subtitle = _subtitles[index];
+                                final isActive = _currentSubtitle == subtitle;
+                                final isBookmarked = _isBookmarked(subtitle);
+                                
+                                return InkWell(
+                                  onTap: () => _jumpToSubtitle(subtitle),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isActive
+                                          ? const Color(0xFFE50914).withValues(alpha: 0.3)
+                                          : Colors.transparent,
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Colors.white.withValues(alpha: 0.1),
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Time
+                                        SizedBox(
+                                          width: 60,
+                                          child: Text(
+                                            _formatDuration(subtitle.startTime),
+                                            style: TextStyle(
+                                              color: isActive
+                                                  ? Colors.white
+                                                  : Colors.white.withValues(alpha: 0.6),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        
+                                        // Subtitle text
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                subtitle.textEn,
+                                                style: TextStyle(
+                                                  color: isActive
+                                                      ? Colors.white
+                                                      : Colors.white.withValues(alpha: 0.8),
+                                                  fontSize: 14,
+                                                  fontWeight: isActive
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                ),
+                                              ),
+                                              if (subtitle.textVi.isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  subtitle.textVi,
+                                                  style: TextStyle(
+                                                    color: Colors.white.withValues(alpha: 0.5),
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        
+                                        // Bookmark button
+                                        IconButton(
+                                          icon: Icon(
+                                            isBookmarked
+                                                ? Icons.bookmark
+                                                : Icons.bookmark_border,
+                                            color: isBookmarked
+                                                ? const Color(0xFFE50914)
+                                                : Colors.white.withValues(alpha: 0.5),
+                                            size: 20,
+                                          ),
+                                          onPressed: () => _toggleBookmark(subtitle),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
               ],
             ),
