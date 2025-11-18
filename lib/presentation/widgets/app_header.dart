@@ -48,25 +48,18 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
           // Navigation items
           _buildNavItem(context, 'Home', () => context.go('/home')),
           _buildNavItem(context, 'My List', () {}),
+
+          // Learning dropdown
+          _buildLearningDropdown(context),
         ],
       ),
       actions: [
-        // Search button
-        IconButton(
-          icon: const Icon(Icons.search, color: Colors.white),
-          tooltip: 'Search',
-          onPressed: () {
-            // TODO: Implement search
-          },
-        ),
-        const SizedBox(width: 8),
-
         // Notifications
         IconButton(
           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-          tooltip: 'Notifications',
+          tooltip: 'Thông báo',
           onPressed: () {
-            // TODO: Implement notifications
+            // Chức năng thông báo - sẽ implement sau
           },
         ),
         const SizedBox(width: 8),
@@ -89,6 +82,74 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
         label,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
+    );
+  }
+
+  Widget _buildLearningDropdown(BuildContext context) {
+    return PopupMenuButton<String>(
+      offset: const Offset(0, 50),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            const Text(
+              'Học Tập',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_drop_down, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'vocabulary',
+          child: Row(
+            children: [
+              const Icon(Icons.book, size: 20, color: Color(0xFF00BCD4)),
+              const SizedBox(width: 12),
+              const Text('Từ Vựng Của Tôi'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'flashcard',
+          child: Row(
+            children: [
+              Icon(Icons.style, size: 20, color: Color(0xFF4CAF50)),
+              SizedBox(width: 12),
+              Text('Flashcard Ôn Tập'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'statistics',
+          child: Row(
+            children: [
+              Icon(Icons.bar_chart, size: 20, color: Color(0xFFFF9800)),
+              SizedBox(width: 12),
+              Text('Thống Kê Học Tập'),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        switch (value) {
+          case 'vocabulary':
+            context.go('/vocabulary');
+            break;
+          case 'flashcard':
+            context.go('/flashcard');
+            break;
+          case 'statistics':
+            context.go('/statistics');
+            break;
+        }
+      },
     );
   }
 
@@ -167,10 +228,10 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       onSelected: (value) async {
         switch (value) {
           case 'profile':
-            // TODO: Navigate to profile
+            // Điều hướng tới trang hồ sơ - sẽ implement sau
             break;
           case 'settings':
-            // TODO: Navigate to settings
+            // Điều hướng tới trang cài đặt - sẽ implement sau
             break;
           case 'logout':
             await AuthRepository().signOut();

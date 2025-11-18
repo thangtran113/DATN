@@ -1,40 +1,40 @@
 import 'package:flutter/material.dart';
 
-// App Colors
+/// Màu sắc ứng dụng
 class AppColors {
-  // Primary Colors (Netflix-inspired)
-  static const Color primary = Color(0xFFE50914); // Netflix Red
-  static const Color primaryDark = Color(0xFFB20710);
-  static const Color primaryLight = Color(0xFFF40612);
+  /// Màu chính (từ logo - hiện đại & tươi mới)
+  static const Color primary = Color(0xFF8FDADB); // Cyan/Turquoise
+  static const Color primaryDark = Color(0xFF234199); // Xanh dương đậm
+  static const Color primaryLight = Color(0xFF90DADC); // Cyan nhạt
 
-  // Background Colors (Dark Theme)
-  static const Color background = Color(0xFF121212);
-  static const Color backgroundLight = Color(0xFF1E1E1E);
-  static const Color backgroundCard = Color(0xFF2A2A2A);
+  /// Màu nền (theme xanh navy tối)
+  static const Color background = Color(0xFF0A1929); // Navy đậm
+  static const Color backgroundLight = Color(0xFF1A2F47); // Xanh xám vừa
+  static const Color backgroundCard = Color(0xFF1A2F47); // Xanh xám vừa
 
-  // Text Colors
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFB3B3B3);
-  static const Color textTertiary = Color(0xFF808080);
+  /// Màu chữ
+  static const Color textPrimary = Color(0xFFF1F5F9); // Xám trắng nhạt
+  static const Color textSecondary = Color(0xFFBDC9D6); // Xám xanh
+  static const Color textTertiary = Color(0xFF8A9BAE); // Xanh xám vừa
 
-  // Accent Colors
-  static const Color accent = Color(0xFF0071EB); // Blue
-  static const Color success = Color(0xFF4CAF50); // Green
-  static const Color warning = Color(0xFFFFC107); // Amber
-  static const Color error = Color(0xFFF44336); // Red
+  /// Màu nhấn
+  static const Color accent = Color(0xFF90DADC); // Cyan sáng
+  static const Color success = Color(0xFF4CAF50); // Xanh lá
+  static const Color warning = Color(0xFFFFA726); // Cam
+  static const Color error = Color(0xFFEF5350); // Đỏ
 
-  // Subtitle Colors
+  /// Màu phụ đề
   static const Color subtitleEnglish = Color(0xFFFFFFFF);
-  static const Color subtitleVietnamese = Color(0xFFFFEB3B);
+  static const Color subtitleVietnamese = Color(0xFFFFD54F); // Vàng
 
-  // Rating Color
-  static const Color rating = Color(0xFFFFC107);
+  /// Màu đánh giá
+  static const Color rating = Color(0xFFFFB300);
 
-  // Overlay & Shadows
+  /// Overlay & Shadow
   static const Color overlay = Color(0x80000000);
   static const Color shadow = Color(0x40000000);
 
-  // Gradient
+  /// Gradient
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [primary, primaryDark],
     begin: Alignment.topLeft,

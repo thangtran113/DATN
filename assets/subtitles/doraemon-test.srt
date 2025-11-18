@@ -1,0 +1,59 @@
+1
+00:00:01,000 --> 00:00:05,000
+Xin chào các bạn
+Hello everyone
+
+2
+00:00:06,000 --> 00:00:10,000
+Đây là Doraemon
+This is Doraemon
+
+3
+00:00:11,000 --> 00:00:15,000
+Chúng ta cùng xem phim nhé
+Let's watch the movie together
+
+4
+00:00:16,000 --> 00:00:20,000
+Nobita đang gặp khó khăn
+Nobita is in trouble
+
+5
+00:00:21,000 --> 00:00:25,000
+Doraemon sẽ giúp cậu ấy
+Doraemon will help him
+
+6
+00:00:26,000 --> 00:00:30,000
+Với những bảo bối thần kỳ
+With his magical gadgets
+
+7
+00:00:31,000 --> 00:00:35,000
+Họ sẽ vượt qua mọi thử thách
+They will overcome all challenges
+
+8
+00:00:36,000 --> 00:00:40,000
+Và có những cuộc phiêu lưu tuyệt vời
+And have wonderful adventures
+
+9
+00:00:41,000 --> 00:00:45,000
+Cùng với các bạn thân
+Together with their friends
+
+10
+00:00:46,000 --> 00:00:50,000
+Hãy cùng theo dõi câu chuyện
+Let's follow the story
+
+11
+00:00:51,000 --> 00:00:55,000
+Trong thế giới của Doraemon
+In the world of Doraemon
+
+12
+00:00:56,000 --> 00:01:00,000
+Nơi mọi điều đều có thể xảy ra
+Where anything is possible

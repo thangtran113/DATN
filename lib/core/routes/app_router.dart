@@ -7,6 +7,9 @@ import '../../presentation/screens/movie/movie_detail_screen.dart';
 import '../../presentation/screens/movie/search_screen.dart';
 import '../../presentation/screens/player/video_player_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
+import '../../presentation/screens/vocabulary/vocabulary_list_screen.dart';
+import '../../presentation/screens/vocabulary/flashcard_screen.dart';
+import '../../presentation/screens/statistics/statistics_screen.dart';
 
 class AppRouter {
   // Custom page transition builder for smooth animations
@@ -91,6 +94,30 @@ class AppRouter {
             state: state,
           );
         },
+      ),
+      GoRoute(
+        path: '/vocabulary',
+        name: 'vocabulary',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          child: const VocabularyListScreen(),
+          state: state,
+        ),
+      ),
+      GoRoute(
+        path: '/flashcard',
+        name: 'flashcard',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          child: const FlashcardScreen(),
+          state: state,
+        ),
+      ),
+      GoRoute(
+        path: '/statistics',
+        name: 'statistics',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          child: const StatisticsScreen(),
+          state: state,
+        ),
       ),
     ],
   );

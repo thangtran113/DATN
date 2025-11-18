@@ -1,14 +1,14 @@
-// App-wide constants
+/// Hằng số toàn ứng dụng
 class AppConstants {
-  // App Info
+  /// Thông tin ứng dụng
   static const String appName = 'Movie Learning App';
   static const String appVersion = '1.0.0';
 
-  // API Keys (To be replaced with actual keys)
+  /// URL API từ điển
   static const String dictionaryApiUrl =
       'https://api.dictionaryapi.dev/api/v2/entries/en';
 
-  // Firestore Collections
+  /// Tên các collection trong Firestore
   static const String usersCollection = 'users';
   static const String moviesCollection = 'movies';
   static const String commentsCollection = 'comments';
@@ -19,21 +19,21 @@ class AppConstants {
   static const String notificationsCollection = 'notifications';
   static const String analyticsCollection = 'analytics';
 
-  // Pagination
+  /// Cài đặt phân trang
   static const int moviesPerPage = 20;
   static const int commentsPerPage = 20;
 
-  // Video Player
+  /// Tốc độ phát video
   static const List<double> playbackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
-  // Learning Levels
+  /// Cấp độ học
   static const List<String> learningLevels = [
     'beginner',
     'intermediate',
     'advanced',
   ];
 
-  // Movie Genres
+  /// Thể loại phim
   static const List<String> movieGenres = [
     'Action',
     'Adventure',
@@ -55,15 +55,15 @@ class AppConstants {
     'Western',
   ];
 
-  // Subtitle Languages
+  /// Ngôn ngữ phụ đề
   static const String englishLanguage = 'en';
   static const String vietnameseLanguage = 'vi';
 
-  // User Roles
+  /// Vai trò người dùng
   static const String userRole = 'user';
   static const String adminRole = 'admin';
 
-  // Mastery Levels
+  /// Mức độ thành thạo
   static const String masteryNew = 'new';
   static const String masteryLearning = 'learning';
   static const String masteryMastered = 'mastered';

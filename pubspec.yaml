@@ -58,6 +58,8 @@ dependencies:
 
   # Text-to-Speech
   flutter_tts: ^4.0.2
+  web: ^1.1.1
+  translator: ^1.0.4+1
 
 dev_dependencies:
   flutter_test:
@@ -78,3 +80,4 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/subtitles/

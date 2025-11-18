@@ -42,6 +42,38 @@ class Movie {
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
+    // Handle subtitles - can be either array or map
+    Map<String, dynamic>? subtitlesMap;
+    final subtitlesData = json['subtitles'];
+    if (subtitlesData is Map<String, dynamic>) {
+      subtitlesMap = subtitlesData;
+    } else if (subtitlesData is List) {
+      // Convert array to map if needed (for backward compatibility)
+      subtitlesMap = null; // Store as null, use languages field instead
+    }
+
+    // Safely parse arrays
+    List<String> parseStringList(dynamic value) {
+      if (value == null) return [];
+      if (value is List) {
+        return value.map((e) => e.toString()).toList();
+      }
+      if (value is Map) {
+        // If map, extract values
+        return value.values.map((e) => e.toString()).toList();
+      }
+      return [];
+    }
+
+    // Safely parse languages from subtitles or languages field
+    List<String> parseLanguages() {
+      final subsData = json['subtitles'];
+      if (subsData is Map) {
+        return subsData.keys.map((e) => e.toString()).toList();
+      }
+      return parseStringList(json['languages']);
+    }
+
     return Movie(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
@@ -52,21 +84,39 @@ class Movie {
       videoUrl: json['videoUrl'],
       duration: json['duration'] ?? 0,
       level: json['level'] ?? 'beginner',
-      genres: List<String>.from(json['genres'] ?? []),
-      languages: List<String>.from(json['languages'] ?? []),
+      genres: parseStringList(json['genres']),
+      languages: parseLanguages(),
       rating: (json['rating'] ?? 0.0).toDouble(),
       year: json['year'] ?? 2024,
-      cast: List<String>.from(json['cast'] ?? []),
+      cast: parseStringList(json['cast']),
       director: json['director'] ?? '',
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : DateTime.now(),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
-          : DateTime.now(),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
       viewCount: json['viewCount'] ?? 0,
-      subtitles: json['subtitles'] as Map<String, dynamic>?,
+      subtitles: subtitlesMap,
     );
+  }
+
+  // Helper method to parse DateTime from various formats
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    } else if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        return DateTime.now();
+      }
+    } else {
+      // Handle Firestore Timestamp (has toDate() method)
+      try {
+        return (value as dynamic).toDate() as DateTime;
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
   }
 
   Map<String, dynamic> toJson() {

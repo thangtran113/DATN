@@ -39,11 +39,17 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# Platform folders (Web-only project)
+/android/
+/ios/
+/linux/
+/macos/
+/windows/
 
 # Documentation (excluding README.md)
 *.md
 !README.md
+
+# Firebase Service Account (NEVER commit this!)
+firebase-service-account.json
+**/firebase-service-account*.json

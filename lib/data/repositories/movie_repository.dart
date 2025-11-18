@@ -1,10 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/movie.dart';
 
+/// Repository xử lý dữ liệu phim
 class MovieRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get all movies with pagination
+  /// Lấy danh sách phim với phân trang
   Future<List<Movie>> getMovies({
     int limit = 20,
     DocumentSnapshot? startAfter,
@@ -20,28 +21,28 @@ class MovieRepository {
       }
 
       final snapshot = await query.get();
-      return snapshot.docs
-          .map((doc) => Movie.fromJson({...doc.data() as Map<String, dynamic>, 'id': doc.id}))
-          .toList();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return Movie.fromJson({...data, 'id': doc.id});
+      }).toList();
     } catch (e) {
-      throw Exception('Failed to fetch movies: $e');
+      throw Exception('Không thể tải danh sách phim: $e');
     }
   }
 
-  // Get movie by ID
+  /// Lấy phim theo ID
   Future<Movie?> getMovieById(String movieId) async {
     try {
       final doc = await _firestore.collection('movies').doc(movieId).get();
-      if (doc.exists) {
-        return Movie.fromJson({...doc.data()!, 'id': doc.id});
-      }
-      return null;
+      if (!doc.exists) return null;
+      return Movie.fromJson({...doc.data()!, 'id': doc.id});
     } catch (e) {
-      throw Exception('Failed to fetch movie: $e');
+      throw Exception('Không thể tải phim: $e');
     }
   }
 
-  // Search movies by title
+  /// Tìm kiếm phim theo tên
   Future<List<Movie>> searchMovies(String query) async {
     try {
       final snapshot = await _firestore
@@ -55,11 +56,11 @@ class MovieRepository {
           .map((doc) => Movie.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
     } catch (e) {
-      throw Exception('Failed to search movies: $e');
+      throw Exception('Không thể tìm kiếm phim: $e');
     }
   }
 
-  // Filter movies by genre
+  /// Lọc phim theo thể loại
   Future<List<Movie>> getMoviesByGenre(String genre, {int limit = 20}) async {
     try {
       final snapshot = await _firestore
@@ -72,11 +73,11 @@ class MovieRepository {
           .map((doc) => Movie.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
     } catch (e) {
-      throw Exception('Failed to fetch movies by genre: $e');
+      throw Exception('Không thể tải phim theo thể loại: $e');
     }
   }
 
-  // Filter movies by level
+  /// Lọc phim theo cấp độ
   Future<List<Movie>> getMoviesByLevel(String level, {int limit = 20}) async {
     try {
       final snapshot = await _firestore
@@ -89,11 +90,11 @@ class MovieRepository {
           .map((doc) => Movie.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
     } catch (e) {
-      throw Exception('Failed to fetch movies by level: $e');
+      throw Exception('Không thể tải phim theo cấp độ: $e');
     }
   }
 
-  // Get popular movies (by view count)
+  /// Lấy phim phổ biến (theo lượt xem)
   Future<List<Movie>> getPopularMovies({int limit = 20}) async {
     try {
       final snapshot = await _firestore
@@ -106,11 +107,11 @@ class MovieRepository {
           .map((doc) => Movie.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
     } catch (e) {
-      throw Exception('Failed to fetch popular movies: $e');
+      throw Exception('Không thể tải phim phổ biến: $e');
     }
   }
 
-  // Increment view count
+  /// Tăng lượt xem phim
   Future<void> incrementViewCount(String movieId) async {
     try {
       await _firestore.collection('movies').doc(movieId).update({
@@ -118,55 +119,55 @@ class MovieRepository {
         'updatedAt': DateTime.now().toIso8601String(),
       });
     } catch (e) {
-      print('Failed to increment view count: $e');
+      print('Không thể tăng lượt xem: $e');
     }
   }
 
-  // Add movie to user's watchlist
+  /// Thêm phim vào danh sách xem sau
   Future<void> addToWatchlist(String userId, String movieId) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'watchlist': FieldValue.arrayUnion([movieId]),
       });
     } catch (e) {
-      throw Exception('Failed to add to watchlist: $e');
+      throw Exception('Không thể thêm vào watchlist: $e');
     }
   }
 
-  // Remove movie from user's watchlist
+  /// Xóa phim khỏi danh sách xem sau
   Future<void> removeFromWatchlist(String userId, String movieId) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'watchlist': FieldValue.arrayRemove([movieId]),
       });
     } catch (e) {
-      throw Exception('Failed to remove from watchlist: $e');
+      throw Exception('Không thể xóa khỏi watchlist: $e');
     }
   }
 
-  // Add movie to user's favorites
+  /// Thêm phim vào yêu thích
   Future<void> addToFavorites(String userId, String movieId) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'favorites': FieldValue.arrayUnion([movieId]),
       });
     } catch (e) {
-      throw Exception('Failed to add to favorites: $e');
+      throw Exception('Không thể thêm vào yêu thích: $e');
     }
   }
 
-  // Remove movie from user's favorites
+  /// Xóa phim khỏi yêu thích
   Future<void> removeFromFavorites(String userId, String movieId) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'favorites': FieldValue.arrayRemove([movieId]),
       });
     } catch (e) {
-      throw Exception('Failed to remove from favorites: $e');
+      throw Exception('Không thể xóa khỏi yêu thích: $e');
     }
   }
 
-  // Get user's watchlist
+  /// Lấy danh sách phim xem sau của user
   Future<List<Movie>> getUserWatchlist(String userId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(userId).get();
@@ -180,11 +181,11 @@ class MovieRepository {
 
       return movies.whereType<Movie>().toList();
     } catch (e) {
-      throw Exception('Failed to fetch watchlist: $e');
+      throw Exception('Không thể tải watchlist: $e');
     }
   }
 
-  // Get user's favorites
+  /// Lấy danh sách phim yêu thích của user
   Future<List<Movie>> getUserFavorites(String userId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(userId).get();
@@ -198,34 +199,37 @@ class MovieRepository {
 
       return movies.whereType<Movie>().toList();
     } catch (e) {
-      throw Exception('Failed to fetch favorites: $e');
+      throw Exception('Không thể tải danh sách yêu thích: $e');
     }
   }
 
-  // Admin: Add new movie
+  /// [ADMIN] Thêm phim mới
   Future<void> addMovie(Movie movie) async {
     try {
       await _firestore.collection('movies').add(movie.toJson());
     } catch (e) {
-      throw Exception('Failed to add movie: $e');
+      throw Exception('Không thể thêm phim: $e');
     }
   }
 
-  // Admin: Update movie
+  /// [ADMIN] Cập nhật phim
   Future<void> updateMovie(Movie movie) async {
     try {
-      await _firestore.collection('movies').doc(movie.id).update(movie.toJson());
+      await _firestore
+          .collection('movies')
+          .doc(movie.id)
+          .update(movie.toJson());
     } catch (e) {
-      throw Exception('Failed to update movie: $e');
+      throw Exception('Không thể cập nhật phim: $e');
     }
   }
 
-  // Admin: Delete movie
+  /// [ADMIN] Xóa phim
   Future<void> deleteMovie(String movieId) async {
     try {
       await _firestore.collection('movies').doc(movieId).delete();
     } catch (e) {
-      throw Exception('Failed to delete movie: $e');
+      throw Exception('Không thể xóa phim: $e');
     }
   }
 }

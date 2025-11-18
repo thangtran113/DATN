@@ -1,74 +1,100 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../domain/entities/user.dart';
 
+/// Repository xử lý xác thực người dùng
 class AuthRepository {
   final firebase_auth.FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
-  GoogleSignIn? _googleSignIn;
 
   AuthRepository({
     firebase_auth.FirebaseAuth? firebaseAuth,
     FirebaseFirestore? firestore,
-    GoogleSignIn? googleSignIn,
   }) : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-       _firestore = firestore ?? FirebaseFirestore.instance {
-    // Only initialize GoogleSignIn on non-web or when client ID is configured
-    if (!kIsWeb) {
-      _googleSignIn = googleSignIn ?? GoogleSignIn();
-    } else {
-      _googleSignIn = null; // Will be initialized when needed on web
-    }
-  }
+       _firestore = firestore ?? FirebaseFirestore.instance;
 
-  // Get current user stream
+  /// Lấy stream trạng thái đăng nhập của user
   Stream<User?> get userStream {
     return _firebaseAuth.authStateChanges().asyncMap((firebaseUser) async {
       if (firebaseUser == null) return null;
-      return await _getUserFromFirestore(firebaseUser.uid);
+      return _getUserFromFirestore(firebaseUser.uid);
     });
   }
 
-  // Get current user
+  /// Lấy user hiện tại
   Future<User?> get currentUser async {
     final firebaseUser = _firebaseAuth.currentUser;
     if (firebaseUser == null) return null;
-    return await _getUserFromFirestore(firebaseUser.uid);
+    return _getUserFromFirestore(firebaseUser.uid);
   }
 
-  // Sign in with email and password
-  Future<User> signInWithEmailAndPassword({
-    required String email,
+  /// Kiểm tra username có khả dụng không
+  Future<bool> isUsernameAvailable(String username) async {
+    final docs = await _firestore
+        .collection('users')
+        .where('username', isEqualTo: username.toLowerCase())
+        .limit(1)
+        .get();
+    return docs.docs.isEmpty;
+  }
+
+  /// Lấy email từ username
+  Future<String?> _getEmailFromUsername(String username) async {
+    final docs = await _firestore
+        .collection('users')
+        .where('username', isEqualTo: username.toLowerCase())
+        .limit(1)
+        .get();
+
+    if (docs.docs.isEmpty) return null;
+    return docs.docs.first.data()['email'] as String?;
+  }
+
+  /// Đăng nhập bằng username và password
+  Future<User> signInWithUsername({
+    required String username,
     required String password,
   }) async {
     try {
-      print('🔐 Attempting login for: $email');
+      final email = await _getEmailFromUsername(username);
+      if (email == null) throw Exception('Username not found');
+
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      if (credential.user == null) {
-        throw Exception('Sign in failed');
-      }
+      if (credential.user == null) throw Exception('Đăng nhập thất bại');
 
-      print('✅ Firebase Auth login successful for UID: ${credential.user!.uid}');
+      await _updateLastLoginTime(credential.user!.uid);
+      return _getUserFromFirestore(credential.user!.uid);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    }
+  }
 
-      // Update last login time
+  /// Đăng nhập bằng email và password
+  Future<User> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (credential.user == null) throw Exception('Đăng nhập thất bại');
+
       await _updateLastLoginTime(credential.user!.uid);
 
-      // Get user from Firestore (will throw if not found)
       try {
-        final user = await _getUserFromFirestore(credential.user!.uid);
-        print('✅ User document found in Firestore');
-        return user;
+        return _getUserFromFirestore(credential.user!.uid);
       } catch (e) {
-        print('⚠️ User document not found, creating new one...');
-        // If user document doesn't exist, create it
+        // Tự động tạo user document nếu chưa có
         final user = User(
           id: credential.user!.uid,
+          username: email.split('@')[0].toLowerCase(),
           email: email,
           displayName: credential.user!.displayName,
           photoUrl: credential.user!.photoURL,
@@ -79,35 +105,36 @@ class AuthRepository {
         return user;
       }
     } on firebase_auth.FirebaseAuthException catch (e) {
-      print('❌ Firebase Auth error: ${e.code} - ${e.message}');
       throw _handleAuthException(e);
     }
   }
 
-  // Register with email and password
+  /// Đăng ký tài khoản mới
   Future<User> registerWithEmailAndPassword({
+    required String username,
     required String email,
     required String password,
     String? displayName,
   }) async {
     try {
+      if (!await isUsernameAvailable(username)) {
+        throw Exception('Username đã được sử dụng');
+      }
+
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      if (credential.user == null) {
-        throw Exception('Registration failed');
-      }
+      if (credential.user == null) throw Exception('Đăng ký thất bại');
 
-      // Update display name if provided
       if (displayName != null) {
         await credential.user!.updateDisplayName(displayName);
       }
 
-      // Create user document in Firestore
       final user = User(
         id: credential.user!.uid,
+        username: username.toLowerCase(),
         email: email,
         displayName: displayName,
         createdAt: DateTime.now(),
@@ -115,85 +142,21 @@ class AuthRepository {
       );
 
       await _createUserInFirestore(user);
-
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
-      print(
-        'FirebaseAuthException during registration: ${e.code} - ${e.message}',
-      );
       throw _handleAuthException(e);
     } catch (e) {
-      print('Unknown error during registration: $e');
-      throw Exception('Registration failed: $e');
+      if (e.toString().contains('Username')) rethrow;
+      throw Exception('Đăng ký thất bại: $e');
     }
   }
 
-  // Sign in with Google
-  Future<User> signInWithGoogle() async {
-    try {
-      if (_googleSignIn == null) {
-        throw Exception('Google Sign In is not available on this platform');
-      }
-
-      final GoogleSignInAccount? googleUser = await _googleSignIn!.signIn();
-
-      if (googleUser == null) {
-        throw Exception('Google sign in aborted');
-      }
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      final credential = firebase_auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _firebaseAuth.signInWithCredential(
-        credential,
-      );
-
-      if (userCredential.user == null) {
-        throw Exception('Google sign in failed');
-      }
-
-      // Check if user exists in Firestore
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .get();
-
-      if (!userDoc.exists) {
-        // Create new user document
-        final user = User(
-          id: userCredential.user!.uid,
-          email: userCredential.user!.email!,
-          displayName: userCredential.user!.displayName,
-          photoUrl: userCredential.user!.photoURL,
-          createdAt: DateTime.now(),
-          lastLoginAt: DateTime.now(),
-        );
-        await _createUserInFirestore(user);
-        return user;
-      } else {
-        // Update last login time
-        await _updateLastLoginTime(userCredential.user!.uid);
-        return await _getUserFromFirestore(userCredential.user!.uid);
-      }
-    } catch (e) {
-      throw Exception('Google sign in error: $e');
-    }
-  }
-
-  // Sign out
+  /// Đăng xuất
   Future<void> signOut() async {
-    await Future.wait([
-      _firebaseAuth.signOut(),
-      if (_googleSignIn != null) _googleSignIn!.signOut(),
-    ]);
+    await _firebaseAuth.signOut();
   }
 
-  // Reset password
+  /// Đặt lại mật khẩu
   Future<void> resetPassword(String email) async {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
@@ -202,80 +165,62 @@ class AuthRepository {
     }
   }
 
-  // Update user profile
+  /// Cập nhật thông tin user
   Future<void> updateUserProfile({
     String? displayName,
     String? photoUrl,
   }) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) throw Exception('No user logged in');
+    if (user == null) throw Exception('Chưa đăng nhập');
 
-    if (displayName != null) {
-      await user.updateDisplayName(displayName);
-    }
-    if (photoUrl != null) {
-      await user.updatePhotoURL(photoUrl);
-    }
+    if (displayName != null) await user.updateDisplayName(displayName);
+    if (photoUrl != null) await user.updatePhotoURL(photoUrl);
 
-    // Update Firestore
+    // Cập nhật Firestore
     await _firestore.collection('users').doc(user.uid).update({
       if (displayName != null) 'displayName': displayName,
       if (photoUrl != null) 'photoUrl': photoUrl,
     });
   }
 
-  // Private helper methods
+  /// Lấy thông tin user từ Firestore
   Future<User> _getUserFromFirestore(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
-    if (!doc.exists) {
-      throw Exception('User document not found');
-    }
+    if (!doc.exists) throw Exception('Không tìm thấy user');
     return User.fromJson(doc.data()!);
   }
 
+  /// Tạo user mới trong Firestore
   Future<void> _createUserInFirestore(User user) async {
-    try {
-      print('📝 Creating user document in Firestore for UID: ${user.id}');
-      await _firestore.collection('users').doc(user.id).set(user.toJson());
-      print('✅ User document created successfully');
-      
-      // Verify the document was created
-      final doc = await _firestore.collection('users').doc(user.id).get();
-      if (doc.exists) {
-        print('✅ User document verified in Firestore');
-      } else {
-        print('❌ User document not found after creation!');
-      }
-    } catch (e) {
-      print('❌ Error creating user document in Firestore: $e');
-      rethrow;
-    }
+    await _firestore.collection('users').doc(user.id).set(user.toJson());
   }
 
+  /// Cập nhật thời gian đăng nhập cuối
   Future<void> _updateLastLoginTime(String uid) async {
     await _firestore.collection('users').doc(uid).update({
       'lastLoginAt': DateTime.now().toIso8601String(),
     });
   }
 
+  /// Xử lý lỗi Firebase Auth
   String _handleAuthException(firebase_auth.FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
-        return 'No user found with this email.';
+        return 'Không tìm thấy tài khoản với username này';
       case 'wrong-password':
-        return 'Wrong password provided.';
+        return 'Sai mật khẩu';
       case 'email-already-in-use':
-        return 'An account already exists with this email.';
+        return 'Email đã được sử dụng';
       case 'invalid-email':
-        return 'Invalid email address.';
+        return 'Email không hợp lệ';
       case 'weak-password':
-        return 'Password is too weak.';
+        return 'Mật khẩu quá yếu';
       case 'operation-not-allowed':
-        return 'Operation not allowed.';
+        return 'Thao tác không được phép';
       case 'user-disabled':
-        return 'This user has been disabled.';
+        return 'Tài khoản đã bị vô hiệu hóa';
       default:
-        return 'An error occurred: ${e.message}';
+        return 'Lỗi: ${e.message}';
     }
   }
 }

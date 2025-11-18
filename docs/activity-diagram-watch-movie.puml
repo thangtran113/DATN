@@ -1,0 +1,90 @@
+@startuml Activity Diagram - Xem phim với phụ đề và tra từ
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam activity {
+    BackgroundColor #E3F2FD
+    BorderColor #2196F3
+    FontSize 12
+}
+skinparam activityDiamond {
+    BackgroundColor #FFF9C4
+    BorderColor #FBC02D
+}
+
+title Activity Diagram - Xem phim với phụ đề song ngữ và tra từ điển
+
+|User|
+start
+:Chọn phim muốn xem;
+:Nhấn "Xem ngay";
+
+|System|
+:Load thông tin phim;
+:Khởi tạo video player;
+:Load phụ đề từ Firebase Storage;
+:Phát video;
+:Hiển thị phụ đề song ngữ\n(Tiếng Anh + Tiếng Việt);
+
+repeat
+  |User|
+  :Xem phim;
+  
+  if (User có action?) then (Có)
+    
+    if (Action type?) then (Click từ)
+      |User|
+      :Click vào từ cần tra;
+      
+      |System|
+      :Pause video;
+      :Gọi Dictionary API;
+      :Hiển thị popup từ điển;
+      
+      |User|
+      :Xem nghĩa, phiên âm, ví dụ;
+      
+      if (Lưu từ?) then (Có)
+        |System|
+        :Lưu từ vào Firestore;
+        :Hiển thị "Đã lưu từ";
+      else (Không)
+      endif
+      
+      |User|
+      :Đóng popup;
+      
+      |System|
+      :Resume video;
+      
+    else if (Play/Pause) then
+      |System|
+      :Toggle play/pause;
+      
+    else if (Seek) then
+      |System|
+      :Tua video;
+      
+    else if (Fullscreen) then
+      |System|
+      :Toggle fullscreen;
+      
+    else (Thoát)
+      |System|
+      :Lưu tiến độ xem;
+      :Cập nhật watch history;
+      stop
+    endif
+    
+  else (Không)
+    |System|
+    :Tiếp tục phát video;
+  endif
+  
+repeat while (Video kết thúc?) is (Chưa)
+
+|System|
+:Cập nhật watch history;
+:Hiển thị phim đề xuất;
+stop
+
+@enduml

@@ -7,6 +7,7 @@ import 'core/constants/app_strings.dart';
 import 'core/routes/app_router.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/movie_provider.dart';
+import 'presentation/providers/vocabulary_provider.dart';
 import 'data/repositories/auth_repository.dart';
 
 void main() async {
@@ -27,6 +28,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => MovieProvider()),
+        ChangeNotifierProvider(create: (_) => VocabularyProvider()),
         StreamProvider(
           create: (_) => AuthRepository().userStream,
           initialData: null,

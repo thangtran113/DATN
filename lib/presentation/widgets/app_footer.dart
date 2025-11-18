@@ -198,7 +198,7 @@ class AppFooter extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 6),
             child: InkWell(
               onTap: () {
-                // TODO: Navigate to respective pages
+                // Điều hướng tới các trang tương ứng - sẽ implement sau
               },
               child: Text(
                 item,
@@ -214,7 +214,7 @@ class AppFooter extends StatelessWidget {
   Widget _buildSocialIcon(IconData icon, {double size = 16}) {
     return InkWell(
       onTap: () {
-        // TODO: Open social media links
+        // Mở link mạng xã hội - sẽ implement sau
       },
       child: Container(
         padding: const EdgeInsets.all(6),
