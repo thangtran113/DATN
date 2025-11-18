@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_strings.dart';
@@ -15,6 +16,9 @@ void main() async {
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Setup Vietnamese locale for timeago
+  timeago.setLocaleMessages('vi', timeago.ViMessages());
 
   runApp(const MyApp());
 }

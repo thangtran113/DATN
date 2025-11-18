@@ -25,7 +25,10 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
   void initState() {
     super.initState();
     _initTts();
-    _loadVocabulary();
+    // Load vocabulary after first frame to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadVocabulary();
+    });
   }
 
   Future<void> _initTts() async {
