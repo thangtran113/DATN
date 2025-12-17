@@ -40,12 +40,24 @@
       content="Learn English through movies with interactive subtitles and vocabulary tools"
     />
 
+    <!-- Google Sign-In -->
+    <meta
+      name="google-signin-client_id"
+      content="530294840005-h38bvs0Tjc6mg7cn250ai8dn6g0g76p1.apps.googleusercontent.com"
+    />
+
     <!-- PWA Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="CineChill" />
     <meta name="theme-color" content="#E50914" />
+
+    <!-- Preconnect to Firebase for faster loading -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://apis.google.com" crossorigin />
+    <link rel="dns-prefetch" href="https://www.googleapis.com" />
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
 
     <link rel="apple-touch-icon" href="icons/Icon-192.png" />
     <link rel="icon" type="image/png" href="favicon.png" />
@@ -76,6 +88,7 @@
         border-top: 4px solid #e50914;
         border-radius: 50%;
         animation: spin 1s linear infinite;
+        will-change: transform;
       }
 
       @keyframes spin {

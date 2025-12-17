@@ -7,16 +7,15 @@ class Movie {
   final String? trailerUrl;
   final String? videoUrl;
   final int duration; // in minutes
-  final String level; // beginner, intermediate, advanced
   final List<String> genres;
   final List<String> languages; // Available subtitle languages
   final double rating;
   final int year;
   final List<String> cast;
   final String director;
+  final String? country; // Production country
   final DateTime createdAt;
   final DateTime updatedAt;
-  final int viewCount;
   final Map<String, dynamic>? subtitles; // {en: url, vi: url}
 
   Movie({
@@ -28,16 +27,15 @@ class Movie {
     this.trailerUrl,
     this.videoUrl,
     required this.duration,
-    required this.level,
     required this.genres,
     required this.languages,
     this.rating = 0.0,
     required this.year,
     this.cast = const [],
     required this.director,
+    this.country,
     required this.createdAt,
     required this.updatedAt,
-    this.viewCount = 0,
     this.subtitles,
   });
 
@@ -83,16 +81,15 @@ class Movie {
       trailerUrl: json['trailerUrl'],
       videoUrl: json['videoUrl'],
       duration: json['duration'] ?? 0,
-      level: json['level'] ?? 'beginner',
       genres: parseStringList(json['genres']),
       languages: parseLanguages(),
-      rating: (json['rating'] ?? 0.0).toDouble(),
+      rating: (json['averageRating'] ?? json['rating'] ?? 0.0).toDouble(),
       year: json['year'] ?? 2024,
       cast: parseStringList(json['cast']),
       director: json['director'] ?? '',
+      country: (json['country'] ?? json['country ']) as String?,
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
-      viewCount: json['viewCount'] ?? 0,
       subtitles: subtitlesMap,
     );
   }
@@ -129,16 +126,15 @@ class Movie {
       'trailerUrl': trailerUrl,
       'videoUrl': videoUrl,
       'duration': duration,
-      'level': level,
       'genres': genres,
       'languages': languages,
       'rating': rating,
       'year': year,
       'cast': cast,
       'director': director,
+      'country': country,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
-      'viewCount': viewCount,
       'subtitles': subtitles,
     };
   }
@@ -152,16 +148,15 @@ class Movie {
     String? trailerUrl,
     String? videoUrl,
     int? duration,
-    String? level,
     List<String>? genres,
     List<String>? languages,
     double? rating,
     int? year,
     List<String>? cast,
     String? director,
+    String? country,
     DateTime? createdAt,
     DateTime? updatedAt,
-    int? viewCount,
     Map<String, dynamic>? subtitles,
   }) {
     return Movie(
@@ -173,16 +168,15 @@ class Movie {
       trailerUrl: trailerUrl ?? this.trailerUrl,
       videoUrl: videoUrl ?? this.videoUrl,
       duration: duration ?? this.duration,
-      level: level ?? this.level,
       genres: genres ?? this.genres,
       languages: languages ?? this.languages,
       rating: rating ?? this.rating,
       year: year ?? this.year,
       cast: cast ?? this.cast,
       director: director ?? this.director,
+      country: country ?? this.country,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      viewCount: viewCount ?? this.viewCount,
       subtitles: subtitles ?? this.subtitles,
     );
   }
@@ -194,18 +188,5 @@ class Movie {
       return '${hours}h ${minutes}m';
     }
     return '${minutes}m';
-  }
-
-  String get levelDisplay {
-    switch (level) {
-      case 'beginner':
-        return 'Beginner';
-      case 'intermediate':
-        return 'Intermediate';
-      case 'advanced':
-        return 'Advanced';
-      default:
-        return level;
-    }
   }
 }

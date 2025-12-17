@@ -178,7 +178,7 @@ class _DictionaryPopupState extends State<DictionaryPopup> {
                         content: Text(
                           'Đã lưu "${widget.wordDefinition.word}" vào từ vựng',
                         ),
-                        duration: const Duration(seconds: 2),
+                        duration: const Duration(seconds: 1),
                         backgroundColor: Colors.green,
                       ),
                     );

@@ -9,6 +9,8 @@ class User {
   final List<String> favoriteMovieIds;
   final List<String> watchlistIds;
   final Map<String, dynamic>? preferences;
+  final bool isAdmin; // Admin role
+  final bool isBanned; // Banned users
 
   User({
     required this.id,
@@ -21,6 +23,8 @@ class User {
     this.favoriteMovieIds = const [],
     this.watchlistIds = const [],
     this.preferences,
+    this.isAdmin = false,
+    this.isBanned = false,
   });
 
   User copyWith({
@@ -34,6 +38,8 @@ class User {
     List<String>? favoriteMovieIds,
     List<String>? watchlistIds,
     Map<String, dynamic>? preferences,
+    bool? isAdmin,
+    bool? isBanned,
   }) {
     return User(
       id: id ?? this.id,
@@ -46,6 +52,8 @@ class User {
       favoriteMovieIds: favoriteMovieIds ?? this.favoriteMovieIds,
       watchlistIds: watchlistIds ?? this.watchlistIds,
       preferences: preferences ?? this.preferences,
+      isAdmin: isAdmin ?? this.isAdmin,
+      isBanned: isBanned ?? this.isBanned,
     );
   }
 
@@ -61,17 +69,21 @@ class User {
       'favoriteMovieIds': favoriteMovieIds,
       'watchlistIds': watchlistIds,
       'preferences': preferences,
+      'isAdmin': isAdmin,
+      'isBanned': isBanned,
     };
   }
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] as String,
-      username: json['username'] as String,
-      email: json['email'] as String,
+      id: json['id'] as String? ?? '',
+      username: json['username'] as String? ?? '',
+      email: json['email'] as String? ?? '',
       displayName: json['displayName'] as String?,
       photoUrl: json['photoUrl'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
       lastLoginAt: json['lastLoginAt'] != null
           ? DateTime.parse(json['lastLoginAt'] as String)
           : null,
@@ -86,6 +98,8 @@ class User {
               .toList() ??
           [],
       preferences: json['preferences'] as Map<String, dynamic>?,
+      isAdmin: json['isAdmin'] as bool? ?? false,
+      isBanned: json['isBanned'] as bool? ?? false,
     );
   }
 }

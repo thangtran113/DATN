@@ -38,4 +38,18 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = error;
     notifyListeners();
   }
+
+  // Sign out the current user
+  Future<void> signOut() async {
+    try {
+      await _authRepository.signOut();
+      _user = null;
+      _errorMessage = null;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Đăng xuất thất bại: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
 }

@@ -5,18 +5,20 @@ import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/movie.dart';
 import '../../../domain/entities/subtitle.dart';
 import '../../../domain/entities/saved_word.dart';
 import '../../../data/repositories/subtitle_repository.dart';
 import '../../../data/services/dictionary_service.dart';
+import '../../../data/services/translation_service.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/vocabulary_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/subtitle_display.dart';
 import '../../widgets/dictionary_popup.dart';
 
-// Web fullscreen sử dụng package:web (thay thế dart:html deprecated)
+// Fullscreen cho Web sử dụng package:web (thay thế dart:html đã lỗi thời)
 import 'package:web/web.dart' as web;
 
 class VideoPlayerScreen extends StatefulWidget {
@@ -51,16 +53,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   // Dictionary
   final _dictionaryService = DictionaryService();
-
-  // 🆕 A-B Loop
-  Duration? _loopPointA;
-  Duration? _loopPointB;
-  bool _isLooping = false;
-  Timer? _loopTimer;
+  final _translationService = TranslationService();
 
   // 🆕 Playback Speed
   double _playbackSpeed = 1.0;
   final List<double> _speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+  // 🆕 Volume Control
+  double _volume = 1.0;
+  bool _isMuted = false;
+  bool _showVolumeSlider = false;
 
   // 🆕 Bookmarked sentences
   final List<Subtitle> _bookmarkedSubtitles = [];
@@ -70,10 +72,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.initState();
     _focusNode = FocusNode();
 
-    // Listen to fullscreen changes on web (e.g., when user presses ESC)
+    // Lắng nghe thay đổi chế độ fullscreen trên web (ví dụ: khi người dùng nhấn ESC)
     if (kIsWeb) {
       web.document.onfullscreenchange = (web.Event event) {
-        // Only update if not currently toggling (avoid double setState)
+        // Chỉ cập nhật nếu không đang chuyển đổi (tránh setState hai lần)
         if (!_isTogglingFullscreen && mounted) {
           final isCurrentlyFullscreen = web.document.fullscreenElement != null;
           if (_isFullscreen != isCurrentlyFullscreen) {
@@ -102,7 +104,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       print('🎬 Initializing video player with URL: ${movie.videoUrl}');
       _initializeVideoPlayer(movie.videoUrl!);
 
-      // Load subtitles
+      // Tải phụ đề
       _loadSubtitles(movie);
     } else {
       print('❌ No video URL found for movie');
@@ -122,12 +124,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _loadSubtitles(Movie movie) async {
     try {
-      // Check if movie has subtitle URL
+      // Kiểm tra xem phim có URL phụ đề không
       if (movie.subtitles != null && movie.subtitles!.isNotEmpty) {
         print('📝 Loading subtitles from URL...');
         print('📝 Subtitles map: ${movie.subtitles}');
 
-        // Check for bilingual subtitles (en + vi)
+        // Kiểm tra phụ đề song ngữ (en + vi)
         final enUrl = movie.subtitles!['en'] as String?;
         final viUrl = movie.subtitles!['vi'] as String?;
 
@@ -136,7 +138,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
         if (enUrl != null && viUrl != null) {
           print('📝 Loading bilingual subtitles from URLs...');
-          // Load bilingual subtitles
+          // Tải phụ đề song ngữ
           final subtitles = await _subtitleRepository.loadBilingualFromUrls(
             englishUrl: enUrl,
             vietnameseUrl: viUrl,
@@ -156,7 +158,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             print('⚠️ Subtitle list is empty after loading!');
           }
         } else if (enUrl != null) {
-          // Load single subtitle file (monolingual or bilingual in one file)
+          // Tải file phụ đề đơn (một ngôn ngữ hoặc song ngữ trong một file)
           final subtitles = await _subtitleRepository.loadFromUrl(enUrl);
 
           if (mounted && subtitles.isNotEmpty) {
@@ -195,8 +197,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         if (mounted && !_isSeeking) {
           setState(() {
             _currentPosition = _videoController!.value.position;
-            // Don't sync _isPlaying from controller to avoid conflicts
-            // Only update position for progress bar
+            // Không đồng bộ _isPlaying từ controller để tránh xung đột
+            // Chỉ cập nhật vị trí cho thanh tiến trình
           });
         }
       });
@@ -205,7 +207,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       setState(() => _isPlaying = true);
       _startHideControlsTimer();
 
-      // Periodic sync to ensure UI matches video state
+      // Đồng bộ định kỳ để đảm bảo UI khớp với trạng thái video
       _syncTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (mounted && _videoController != null) {
           final actuallyPlaying = _videoController!.value.isPlaying;
@@ -213,7 +215,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             setState(() => _isPlaying = actuallyPlaying);
           }
 
-          // Update current subtitle
+          // Cập nhật phụ đề hiện tại
           Subtitle? newSubtitle;
           for (final subtitle in _subtitles) {
             if (subtitle.isActiveAt(_currentPosition)) {
@@ -239,7 +241,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           SnackBar(
             content: Text('Lỗi load video: $e'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -268,7 +270,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void dispose() {
     _hideControlsTimer?.cancel();
     _syncTimer?.cancel();
-    _loopTimer?.cancel(); // 🆕 Cancel loop timer
     _videoController?.dispose();
     _focusNode.dispose();
     SystemChrome.setPreferredOrientations([
@@ -279,137 +280,49 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.dispose();
   }
 
-  // 🆕 ============ A-B LOOP METHODS ============
+  // 🆕 ============ VOLUME CONTROL METHODS ============
 
-  void _setLoopPointA() {
-    setState(() {
-      _loopPointA = _currentPosition;
-      if (_loopPointB != null && _loopPointA! >= _loopPointB!) {
-        _loopPointB = null; // Reset B if A is after B
-      }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Loop Point A set at ${_formatDuration(_currentPosition)}'),
-        duration: const Duration(seconds: 1),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  void _setLoopPointB() {
-    if (_loopPointA == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please set Point A first'),
-          duration: Duration(seconds: 1),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    if (_currentPosition <= _loopPointA!) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Point B must be after Point A'),
-          duration: Duration(seconds: 1),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+  void _toggleMute() {
+    if (_videoController == null) return;
 
     setState(() {
-      _loopPointB = _currentPosition;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Loop Point B set at ${_formatDuration(_currentPosition)}'),
-        duration: const Duration(seconds: 1),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  void _toggleLoop() {
-    if (_loopPointA == null || _loopPointB == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please set both Point A and Point B'),
-          duration: Duration(seconds: 2),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLooping = !_isLooping;
-    });
-
-    if (_isLooping) {
-      _startLoopTimer();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A-B Loop enabled'),
-          duration: Duration(seconds: 1),
-          backgroundColor: Colors.blue,
-        ),
-      );
-    } else {
-      _loopTimer?.cancel();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A-B Loop disabled'),
-          duration: Duration(seconds: 1),
-          backgroundColor: Colors.grey,
-        ),
-      );
-    }
-  }
-
-  void _startLoopTimer() {
-    _loopTimer?.cancel();
-    _loopTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (_videoController != null && _isLooping && _loopPointA != null && _loopPointB != null) {
-        final position = _videoController!.value.position;
-        if (position >= _loopPointB!) {
-          _videoController!.seekTo(_loopPointA!);
-        }
+      _isMuted = !_isMuted;
+      if (_isMuted) {
+        _videoController!.setVolume(0.0);
+      } else {
+        _videoController!.setVolume(_volume);
       }
     });
   }
 
-  void _clearLoop() {
+  void _setVolume(double volume) {
+    if (_videoController == null) return;
+
     setState(() {
-      _loopPointA = null;
-      _loopPointB = null;
-      _isLooping = false;
+      _volume = volume;
+      if (!_isMuted) {
+        _videoController!.setVolume(volume);
+      }
+      if (volume > 0 && _isMuted) {
+        _isMuted = false;
+      }
     });
-    _loopTimer?.cancel();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Loop cleared'),
-        duration: Duration(seconds: 1),
-      ),
-    );
   }
 
   // 🆕 ============ SPEED CONTROL METHODS ============
 
   void _changePlaybackSpeed(double speed) {
     if (_videoController == null) return;
-    
+
     setState(() {
       _playbackSpeed = speed;
     });
-    
+
     _videoController!.setPlaybackSpeed(speed);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Playback speed: ${speed}x'),
+        content: Text('Tốc độ phát: ${speed}x'),
         duration: const Duration(seconds: 1),
       ),
     );
@@ -419,12 +332,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   void _jumpToSubtitle(Subtitle subtitle) {
     if (_videoController == null) return;
-    
+
     _videoController!.seekTo(subtitle.startTime);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Jumped to: ${subtitle.textEn}'),
+        content: Text('Đã nhảy tới: ${subtitle.textEn}'),
         duration: const Duration(seconds: 1),
       ),
     );
@@ -434,12 +347,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   void _toggleBookmark(Subtitle subtitle) {
     setState(() {
-      final index = _bookmarkedSubtitles.indexWhere((s) => s.startTime == subtitle.startTime);
+      final index = _bookmarkedSubtitles.indexWhere(
+        (s) => s.startTime == subtitle.startTime,
+      );
       if (index >= 0) {
         _bookmarkedSubtitles.removeAt(index);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Bookmark removed'),
+            content: Text('Đã xóa đánh dấu'),
             duration: Duration(seconds: 1),
             backgroundColor: Colors.grey,
           ),
@@ -448,7 +363,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _bookmarkedSubtitles.add(subtitle);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Bookmark added'),
+            content: Text('Đã thêm đánh dấu'),
             duration: Duration(seconds: 1),
             backgroundColor: Colors.blue,
           ),
@@ -499,29 +414,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     print('🔲 Toggle fullscreen: $_isFullscreen -> ${!_isFullscreen}');
     print('🎵 Video is playing BEFORE: ${_videoController?.value.isPlaying}');
 
-    // Remember if video was playing
+    // Ghi nhớ xem video có đang phát không
     final wasPlaying = _videoController?.value.isPlaying ?? false;
 
     if (kIsWeb) {
-      // Web: Use package:web Fullscreen API
+      // Web: Sử dụng package:web Fullscreen API
       _isTogglingFullscreen = true;
 
       try {
         if (!_isFullscreen) {
-          // Enter fullscreen
+          // Vào chế độ fullscreen
           web.document.documentElement?.requestFullscreen();
         } else {
-          // Exit fullscreen
+          // Thoát chế độ fullscreen
           web.document.exitFullscreen();
         }
 
-        // Update state without affecting video playback
+        // Cập nhật trạng thái mà không ảnh hưởng đến video
         setState(() {
           _isFullscreen = !_isFullscreen;
           _showControls = true; // Show controls when toggling fullscreen
         });
 
-        // FORCE video to continue playing if it was playing before
+        // BẮT BUỘC video tiếp tục phát nếu nó đang phát trước đó
         Future.delayed(const Duration(milliseconds: 100), () {
           if (wasPlaying && _videoController != null) {
             if (!_videoController!.value.isPlaying) {
@@ -536,7 +451,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
         _startHideControlsTimer(); // Auto-hide controls after 3s
 
-        // Reset flag after a delay
+        // Đặt lại cờ sau một chút
         Future.delayed(const Duration(milliseconds: 500), () {
           _isTogglingFullscreen = false;
         });
@@ -546,12 +461,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Fullscreen không được hỗ trợ'),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
     } else {
-      // Mobile: Use SystemChrome
+      // Mobile: Sử dụng SystemChrome
       setState(() {
         _isFullscreen = !_isFullscreen;
         _showControls = true;
@@ -590,13 +505,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _onWordTap(String word) async {
     print('📖 Word tapped: $word');
 
-    // Pause video to let user read definition
+    // Tạm dừng video để người dùng đọc định nghĩa
     if (_videoController != null && _isPlaying) {
       _videoController!.pause();
       setState(() => _isPlaying = false);
     }
 
-    // Show loading
+    // Hiển thị loading
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -605,16 +520,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       ),
     );
 
-    // Lookup word
+    // Tra từ
     final definition = await _dictionaryService.lookupWord(word);
 
-    // Close loading
+    // Đóng loading
     if (mounted) {
       Navigator.pop(context);
     }
 
     if (definition != null) {
-      // Show dictionary popup
+      // Hiển thị popup từ điển
       if (mounted) {
         showModalBottomSheet(
           context: context,
@@ -629,13 +544,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         );
       }
     } else {
-      // Word not found
+      // Không tìm thấy từ
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Word "$word" not found in dictionary'),
+            content: Text('Không tìm thấy từ "$word" trong từ điển'),
             backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -686,12 +601,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ? firstMeaning!.definitions.first.example
           : null;
 
+      // Dịch nghĩa sang tiếng Việt
+      String? vietnameseMeaning;
+      try {
+        vietnameseMeaning = await _translationService.translateDefinition(
+          meaningText,
+        );
+        if (vietnameseMeaning != null) {
+          print('✅ Đã dịch sang tiếng Việt: $vietnameseMeaning');
+        }
+      } catch (e) {
+        print('⚠️ Không thể dịch sang tiếng Việt: $e');
+        // Tiếp tục lưu từ ngay cả khi không dịch được
+      }
+
       // Tạo SavedWord
       final savedWord = SavedWord(
         id: '', // Firestore sẽ tự tạo ID
         userId: authProvider.user!.id,
         word: definition.word,
         meaning: meaningText,
+        vietnameseMeaning: vietnameseMeaning,
         pronunciation: definition.phonetic,
         example: example,
         movieId: widget.movieId,
@@ -714,7 +644,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   : 'Lỗi khi lưu từ vựng',
             ),
             backgroundColor: success ? Colors.green : Colors.red,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -756,7 +686,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE50914),
+                      backgroundColor: AppColors.primary,
                     ),
                     child: const Text('Go Back'),
                   ),
@@ -777,27 +707,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       autofocus: true,
       onKeyEvent: (KeyEvent event) {
         if (event is KeyDownEvent) {
-          // Space bar - Play/Pause
+          // Phím Space - Phát/Tạm dừng
           if (event.logicalKey == LogicalKeyboardKey.space) {
             _togglePlayPause();
           }
-          // Arrow Right - Skip forward 10s
+          // Phím mũi tên phải - Tiến 10 giây
           else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
             _skipForward();
             setState(() => _showControls = true);
             _startHideControlsTimer();
           }
-          // Arrow Left - Skip backward 10s
+          // Phím mũi tên trái - Lùi 10 giây
           else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
             _skipBackward();
             setState(() => _showControls = true);
             _startHideControlsTimer();
           }
-          // F or f - Toggle fullscreen
+          // Phím F - Bật/tắt fullscreen
           else if (event.logicalKey == LogicalKeyboardKey.keyF) {
             _toggleFullscreen();
           }
-          // Escape - Exit fullscreen
+          // Phím Escape - Thoát fullscreen
           else if (event.logicalKey == LogicalKeyboardKey.escape) {
             if (_isFullscreen) {
               _toggleFullscreen();
@@ -818,7 +748,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             color: Colors.black,
             child: Stack(
               children: [
-                // Video Player (Single instance, never rebuilt)
+                // Trình phát video (Một instance duy nhất, không rebuild)
                 Center(
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
@@ -835,9 +765,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-                // Netflix-style Gradient Overlays
+                // Lớp phủ gradient kiểu Netflix
                 if (_showControls) ...[
-                  // Top gradient
+                  // Gradient trên đỉnh
                   Positioned(
                     top: 0,
                     left: 0,
@@ -857,7 +787,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ),
                   ),
 
-                  // Bottom gradient
+                  // Gradient dưới đáy
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -878,7 +808,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ],
 
-                // Top Controls (Back button + Title)
+                // Điều khiển trên cùng (Nút quay lại + Tiêu đề)
                 if (_showControls)
                   Positioned(
                     top: 0,
@@ -927,34 +857,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                           fontSize: 13,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.5,
-                                            ),
-                                            width: 1,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            2,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          movie.levelDisplay.toUpperCase(),
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.9,
-                                            ),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
                                     ],
                                   ),
                                 ],
@@ -966,7 +868,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ),
                   ),
 
-                // Center Play/Pause Button
+                // Nút Phát/Tạm dừng giữa màn hình
                 if (_showControls)
                   Center(
                     child: GestureDetector(
@@ -975,7 +877,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Skip Backward
+                          // Lùi lại
                           IconButton(
                             icon: const Icon(
                               Icons.replay_10,
@@ -988,7 +890,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             },
                           ),
                           const SizedBox(width: 32),
-                          // Play/Pause
+                          // Phát/Tạm dừng
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.5),
@@ -1004,7 +906,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             ),
                           ),
                           const SizedBox(width: 32),
-                          // Skip Forward
+                          // Tiến tới
                           IconButton(
                             icon: const Icon(
                               Icons.forward_10,
@@ -1021,7 +923,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ),
                   ),
 
-                // Subtitles - Always visible (independent of controls)
+                // Phụ đề - Luôn hiển thị (độc lập với điều khiển)
                 if (_showSubtitles && _currentSubtitle != null)
                   Positioned(
                     bottom: _showControls
@@ -1038,14 +940,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         child: SubtitleDisplay(
                           currentSubtitle: _currentSubtitle,
                           showVietnamese: true,
-                          fontSize: 18,
+                          fontSize: 28,
                           onWordTap: _onWordTap, // Enable word clicking
                         ),
                       ),
                     ),
                   ),
 
-                // Bottom Controls (Progress Bar + Time + Fullscreen)
+                // Điều khiển dưới cùng (Thanh tiến trình + Thời gian + Fullscreen)
                 if (_showControls)
                   Positioned(
                     bottom: 0,
@@ -1055,7 +957,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Progress Bar
+                          // Thanh tiến trình
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: SliderTheme(
@@ -1067,11 +969,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                 overlayShape: const RoundSliderOverlayShape(
                                   overlayRadius: 14,
                                 ),
-                                activeTrackColor: const Color(0xFFE50914),
+                                activeTrackColor: AppColors.accent,
                                 inactiveTrackColor: Colors.white.withValues(
                                   alpha: 0.3,
                                 ),
-                                thumbColor: const Color(0xFFE50914),
+                                thumbColor: AppColors.accent,
                                 overlayColor: const Color(
                                   0xFFE50914,
                                 ).withValues(alpha: 0.3),
@@ -1099,7 +1001,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             ),
                           ),
 
-                          // Time Display and Controls
+                          // Hiển thị thời gian và điều khiển
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -1108,103 +1010,87 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                // 🆕 A-B Loop Controls + Time
+                                // Thời gian
                                 Expanded(
-                                  child: Row(
-                                    children: [
-                                      // Set Point A button
-                                      IconButton(
-                                        icon: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: BoxDecoration(
-                                            color: _loopPointA != null
-                                                ? const Color(0xFFE50914)
-                                                : Colors.white24,
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: const Text(
-                                            'A',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        onPressed: _setLoopPointA,
-                                        tooltip: 'Set Loop Point A',
-                                      ),
-                                      
-                                      // Set Point B button
-                                      IconButton(
-                                        icon: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: BoxDecoration(
-                                            color: _loopPointB != null
-                                                ? const Color(0xFFE50914)
-                                                : Colors.white24,
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: const Text(
-                                            'B',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        onPressed: _setLoopPointB,
-                                        tooltip: 'Set Loop Point B',
-                                      ),
-                                      
-                                      // Loop toggle button
-                                      IconButton(
-                                        icon: Icon(
-                                          _isLooping
-                                              ? Icons.repeat_on
-                                              : Icons.repeat,
-                                          color: _isLooping
-                                              ? const Color(0xFFE50914)
-                                              : Colors.white,
-                                          size: 20,
-                                        ),
-                                        onPressed: (_loopPointA != null && _loopPointB != null)
-                                            ? _toggleLoop
-                                            : null,
-                                        tooltip: 'Toggle A-B Loop',
-                                      ),
-                                      
-                                      // Clear loop button
-                                      if (_loopPointA != null || _loopPointB != null)
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.clear,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                          onPressed: _clearLoop,
-                                          tooltip: 'Clear Loop',
-                                        ),
-                                      
-                                      const SizedBox(width: 8),
-                                      
-                                      // Time
-                                      Text(
-                                        '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
+                                  child: Text(
+                                    '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
 
-                                // Right controls
+                                // Điều khiển bên phải
                                 Row(
                                   children: [
+                                    // 🆕 Volume Control
+                                    MouseRegion(
+                                      onEnter: (_) {
+                                        setState(
+                                          () => _showVolumeSlider = true,
+                                        );
+                                      },
+                                      onExit: (_) {
+                                        setState(
+                                          () => _showVolumeSlider = false,
+                                        );
+                                      },
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(
+                                              _isMuted || _volume == 0
+                                                  ? Icons.volume_off
+                                                  : _volume < 0.5
+                                                  ? Icons.volume_down
+                                                  : Icons.volume_up,
+                                              color: Colors.white,
+                                              size: 24,
+                                            ),
+                                            onPressed: _toggleMute,
+                                            tooltip: _isMuted
+                                                ? 'Unmute'
+                                                : 'Mute',
+                                          ),
+                                          if (_showVolumeSlider)
+                                            Container(
+                                              width: 100,
+                                              child: SliderTheme(
+                                                data: SliderThemeData(
+                                                  trackHeight: 2,
+                                                  thumbShape:
+                                                      const RoundSliderThumbShape(
+                                                        enabledThumbRadius: 5,
+                                                      ),
+                                                  overlayShape:
+                                                      const RoundSliderOverlayShape(
+                                                        overlayRadius: 10,
+                                                      ),
+                                                  activeTrackColor:
+                                                      Colors.white,
+                                                  inactiveTrackColor: Colors
+                                                      .white
+                                                      .withOpacity(0.3),
+                                                  thumbColor: Colors.white,
+                                                  overlayColor: Colors.white
+                                                      .withOpacity(0.3),
+                                                ),
+                                                child: Slider(
+                                                  value: _isMuted ? 0 : _volume,
+                                                  min: 0.0,
+                                                  max: 1.0,
+                                                  onChanged: _setVolume,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+
                                     // 🆕 Speed Control
                                     PopupMenuButton<double>(
                                       icon: Row(
@@ -1234,9 +1120,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                             child: Row(
                                               children: [
                                                 if (speed == _playbackSpeed)
-                                                  const Icon(
+                                                  Icon(
                                                     Icons.check,
-                                                    color: Color(0xFFE50914),
+                                                    color: AppColors.accent,
                                                     size: 18,
                                                   )
                                                 else
@@ -1245,10 +1131,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                                 Text(
                                                   '${speed}x',
                                                   style: TextStyle(
-                                                    color: speed == _playbackSpeed
-                                                        ? const Color(0xFFE50914)
+                                                    color:
+                                                        speed == _playbackSpeed
+                                                        ? const Color(
+                                                            0xFFE50914,
+                                                          )
                                                         : Colors.white,
-                                                    fontWeight: speed == _playbackSpeed
+                                                    fontWeight:
+                                                        speed == _playbackSpeed
                                                         ? FontWeight.bold
                                                         : FontWeight.normal,
                                                   ),
@@ -1260,7 +1150,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                       },
                                     ),
                                     const SizedBox(width: 8),
-                                    
+
                                     // 🆕 Subtitle List Toggle
                                     IconButton(
                                       icon: Icon(
@@ -1268,20 +1158,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                             ? Icons.list
                                             : Icons.list_outlined,
                                         color: _showSubtitleList
-                                            ? const Color(0xFFE50914)
+                                            ? AppColors.accent
                                             : Colors.white,
                                         size: 24,
                                       ),
                                       onPressed: () {
                                         setState(() {
-                                          _showSubtitleList = !_showSubtitleList;
+                                          _showSubtitleList =
+                                              !_showSubtitleList;
                                         });
                                       },
                                       tooltip: 'Subtitle List',
                                     ),
                                     const SizedBox(width: 8),
-                                    
-                                    // Fullscreen button
+
+                                    // Nút fullscreen
                                     IconButton(
                                       icon: Icon(
                                         _isFullscreen
@@ -1302,10 +1193,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ),
                   ),
 
-                // Loading indicator
+                // Chỉ báo đang tải
                 if (_isSeeking)
-                  const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFE50914)),
+                  Center(
+                    child: CircularProgressIndicator(color: AppColors.accent),
                   ),
 
                 // 🆕 Subtitle List Panel
@@ -1327,11 +1218,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Header
+                          // Tiêu đề
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE50914).withValues(alpha: 0.2),
+                              color: const Color(
+                                0xFFE50914,
+                              ).withValues(alpha: 0.2),
                               border: Border(
                                 bottom: BorderSide(
                                   color: Colors.white.withValues(alpha: 0.2),
@@ -1362,8 +1255,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               ],
                             ),
                           ),
-                          
-                          // Subtitle list
+
+                          // Danh sách phụ đề
                           Expanded(
                             child: ListView.builder(
                               itemCount: _subtitles.length,
@@ -1371,7 +1264,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                 final subtitle = _subtitles[index];
                                 final isActive = _currentSubtitle == subtitle;
                                 final isBookmarked = _isBookmarked(subtitle);
-                                
+
                                 return InkWell(
                                   onTap: () => _jumpToSubtitle(subtitle),
                                   child: Container(
@@ -1381,19 +1274,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                     ),
                                     decoration: BoxDecoration(
                                       color: isActive
-                                          ? const Color(0xFFE50914).withValues(alpha: 0.3)
+                                          ? const Color(
+                                              0xFFE50914,
+                                            ).withValues(alpha: 0.3)
                                           : Colors.transparent,
                                       border: Border(
                                         bottom: BorderSide(
-                                          color: Colors.white.withValues(alpha: 0.1),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.1,
+                                          ),
                                           width: 1,
                                         ),
                                       ),
                                     ),
                                     child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        // Time
+                                        // Thời gian
                                         SizedBox(
                                           width: 60,
                                           child: Text(
@@ -1401,36 +1299,44 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                             style: TextStyle(
                                               color: isActive
                                                   ? Colors.white
-                                                  : Colors.white.withValues(alpha: 0.6),
+                                                  : Colors.white.withValues(
+                                                      alpha: 0.6,
+                                                    ),
                                               fontSize: 12,
                                             ),
                                           ),
                                         ),
                                         const SizedBox(width: 12),
-                                        
-                                        // Subtitle text
+
+                                        // Nội dung phụ đề
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 subtitle.textEn,
                                                 style: TextStyle(
                                                   color: isActive
                                                       ? Colors.white
-                                                      : Colors.white.withValues(alpha: 0.8),
+                                                      : Colors.white.withValues(
+                                                          alpha: 0.8,
+                                                        ),
                                                   fontSize: 14,
                                                   fontWeight: isActive
                                                       ? FontWeight.bold
                                                       : FontWeight.normal,
                                                 ),
                                               ),
-                                              if (subtitle.textVi.isNotEmpty) ...[
+                                              if (subtitle
+                                                  .textVi
+                                                  .isNotEmpty) ...[
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   subtitle.textVi,
                                                   style: TextStyle(
-                                                    color: Colors.white.withValues(alpha: 0.5),
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.5),
                                                     fontSize: 12,
                                                   ),
                                                 ),
@@ -1438,19 +1344,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                             ],
                                           ),
                                         ),
-                                        
-                                        // Bookmark button
+
+                                        // Nút đánh dấu
                                         IconButton(
                                           icon: Icon(
                                             isBookmarked
                                                 ? Icons.bookmark
                                                 : Icons.bookmark_border,
                                             color: isBookmarked
-                                                ? const Color(0xFFE50914)
-                                                : Colors.white.withValues(alpha: 0.5),
+                                                ? AppColors.accent
+                                                : Colors.white.withValues(
+                                                    alpha: 0.5,
+                                                  ),
                                             size: 20,
                                           ),
-                                          onPressed: () => _toggleBookmark(subtitle),
+                                          onPressed: () =>
+                                              _toggleBookmark(subtitle),
                                         ),
                                       ],
                                     ),

@@ -6,22 +6,22 @@ class AppAnimations {
   static const Duration fast = Duration(milliseconds: 200);
   static const Duration normal = Duration(milliseconds: 300);
   static const Duration slow = Duration(milliseconds: 500);
-  
+
   // Curves
   static const Curve defaultCurve = Curves.easeInOut;
   static const Curve bounceIn = Curves.easeOutBack;
   static const Curve smoothCurve = Curves.easeInOutCubic;
-  
+
   // Fade animations
   static const Duration fadeIn = Duration(milliseconds: 400);
   static const Duration fadeOut = Duration(milliseconds: 300);
-  
+
   // Slide animations
   static const Duration slideIn = Duration(milliseconds: 350);
-  
+
   // Scale animations
   static const Duration scaleIn = Duration(milliseconds: 300);
-  
+
   // Hover effects
   static const Duration hoverDuration = Duration(milliseconds: 200);
   static const double hoverScale = 1.05;
@@ -33,7 +33,7 @@ class FadeInWidget extends StatefulWidget {
   final Widget child;
   final Duration delay;
   final Duration duration;
-  
+
   const FadeInWidget({
     Key? key,
     required this.child,
@@ -53,10 +53,7 @@ class _FadeInWidgetState extends State<FadeInWidget>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
 
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: AppAnimations.defaultCurve),
@@ -75,10 +72,7 @@ class _FadeInWidgetState extends State<FadeInWidget>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacityAnimation,
-      child: widget.child,
-    );
+    return FadeTransition(opacity: _opacityAnimation, child: widget.child);
   }
 }
 
@@ -87,7 +81,7 @@ class SlideInFromBottom extends StatefulWidget {
   final Widget child;
   final Duration delay;
   final Duration duration;
-  
+
   const SlideInFromBottom({
     Key? key,
     required this.child,
@@ -108,18 +102,15 @@ class _SlideInFromBottomState extends State<SlideInFromBottom>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: AppAnimations.defaultCurve,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: AppAnimations.defaultCurve,
+          ),
+        );
 
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: AppAnimations.defaultCurve),
@@ -140,10 +131,7 @@ class _SlideInFromBottomState extends State<SlideInFromBottom>
   Widget build(BuildContext context) {
     return SlideTransition(
       position: _slideAnimation,
-      child: FadeTransition(
-        opacity: _opacityAnimation,
-        child: widget.child,
-      ),
+      child: FadeTransition(opacity: _opacityAnimation, child: widget.child),
     );
   }
 }
@@ -153,7 +141,7 @@ class ScaleInAnimation extends StatefulWidget {
   final Widget child;
   final Duration delay;
   final Duration duration;
-  
+
   const ScaleInAnimation({
     Key? key,
     required this.child,
@@ -174,10 +162,7 @@ class _ScaleInAnimationState extends State<ScaleInAnimation>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
 
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: AppAnimations.bounceIn),
@@ -202,10 +187,7 @@ class _ScaleInAnimationState extends State<ScaleInAnimation>
   Widget build(BuildContext context) {
     return ScaleTransition(
       scale: _scaleAnimation,
-      child: FadeTransition(
-        opacity: _opacityAnimation,
-        child: widget.child,
-      ),
+      child: FadeTransition(opacity: _opacityAnimation, child: widget.child),
     );
   }
 }
@@ -217,7 +199,7 @@ class AnimatedCard extends StatefulWidget {
   final EdgeInsets? padding;
   final Color? color;
   final BorderRadius? borderRadius;
-  
+
   const AnimatedCard({
     Key? key,
     required this.child,
@@ -232,30 +214,18 @@ class AnimatedCard extends StatefulWidget {
 }
 
 class _AnimatedCardState extends State<AnimatedCard> {
-  bool _isHovered = false;
-
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: AppAnimations.hoverDuration,
-        curve: AppAnimations.defaultCurve,
-        transform: Matrix4.identity()
-          ..scale(_isHovered ? AppAnimations.hoverScale : 1.0),
-        child: Material(
-          color: widget.color ?? Colors.transparent,
-          borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
-          elevation: _isHovered ? AppAnimations.hoverElevation : 2.0,
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
-            child: Padding(
-              padding: widget.padding ?? const EdgeInsets.all(16),
-              child: widget.child,
-            ),
-          ),
+    return Material(
+      color: widget.color ?? Colors.transparent,
+      borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
+      elevation: 2.0,
+      child: InkWell(
+        onTap: widget.onTap,
+        borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
+        child: Padding(
+          padding: widget.padding ?? const EdgeInsets.all(16),
+          child: widget.child,
         ),
       ),
     );
@@ -269,7 +239,7 @@ class AnimatedButton extends StatefulWidget {
   final Color? backgroundColor;
   final EdgeInsets? padding;
   final BorderRadius? borderRadius;
-  
+
   const AnimatedButton({
     Key? key,
     required this.child,
@@ -314,7 +284,8 @@ class _AnimatedButtonState extends State<AnimatedButton> {
                 ],
         ),
         child: Padding(
-          padding: widget.padding ??
+          padding:
+              widget.padding ??
               const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           child: widget.child,
         ),
@@ -329,7 +300,7 @@ class StaggeredListAnimation extends StatelessWidget {
   final Widget Function(BuildContext, int) itemBuilder;
   final Duration delayBetweenItems;
   final Axis scrollDirection;
-  
+
   const StaggeredListAnimation({
     Key? key,
     required this.itemCount,
@@ -358,7 +329,7 @@ class ShimmerLoading extends StatefulWidget {
   final double width;
   final double height;
   final BorderRadius? borderRadius;
-  
+
   const ShimmerLoading({
     Key? key,
     required this.width,
@@ -383,9 +354,10 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
       vsync: this,
     )..repeat();
 
-    _animation = Tween<double>(begin: -1.0, end: 2.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: -1.0,
+      end: 2.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override

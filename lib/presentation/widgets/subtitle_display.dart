@@ -13,7 +13,7 @@ class SubtitleDisplay extends StatefulWidget {
     required this.currentSubtitle,
     this.onTap,
     this.showVietnamese = true,
-    this.fontSize = 18.0,
+    this.fontSize = 36.0,
     this.onWordTap,
   }) : super(key: key);
 
@@ -62,7 +62,7 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // English subtitle (clickable words)
+            // Phụ đề tiếng Anh (có thể click từ)
             widget.onWordTap != null
                 ? _buildClickableText(
                     widget.currentSubtitle!.textEn,
@@ -142,7 +142,7 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
                     textAlign: TextAlign.center,
                   ),
 
-            // Vietnamese subtitle
+            // Phụ đề tiếng Việt
             if (widget.showVietnamese) ...[
               const SizedBox(height: 6),
               Text(
@@ -193,13 +193,13 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
 
   /// Build clickable text where each word is tappable
   Widget _buildClickableText(String text, TextStyle style) {
-    // Split text into words
+    // Tách văn bản thành các từ
     final words = text.split(RegExp(r'\s+'));
 
     return Wrap(
       alignment: WrapAlignment.center,
       children: words.map((word) {
-        // Extract pure word (remove punctuation for lookup but keep for display)
+        // Trích xuất từ thuần (xóa dấu câu để tra từ nhưng giữ lại để hiển thị)
         final cleanWord = word.replaceAll(RegExp(r'[^\w\s-]'), '');
         final isHighlighted =
             _highlightedWord != null &&

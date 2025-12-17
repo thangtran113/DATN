@@ -94,6 +94,27 @@ class VocabularyProvider extends ChangeNotifier {
     }
   }
 
+  /// Cập nhật mastery level trực tiếp (cho Flashcard/Quiz)
+  Future<void> updateWordMastery(String wordId, int newMasteryLevel) async {
+    try {
+      await _repository.updateMasteryLevel(wordId, newMasteryLevel);
+
+      // Cập nhật local state
+      final index = _vocabulary.indexWhere((w) => w.id == wordId);
+      if (index != -1) {
+        _vocabulary[index] = _vocabulary[index].copyWith(
+          masteryLevel: newMasteryLevel,
+          reviewCount: _vocabulary[index].reviewCount + 1,
+          lastReviewedAt: DateTime.now(),
+        );
+        _applyFilters();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('❌ Lỗi khi cập nhật mastery: $e');
+    }
+  }
+
   /// Xóa một từ
   Future<bool> deleteWord(String wordId) async {
     try {

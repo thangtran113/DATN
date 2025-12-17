@@ -9,6 +9,13 @@ import 'core/routes/app_router.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/movie_provider.dart';
 import 'presentation/providers/vocabulary_provider.dart';
+import 'presentation/providers/comment_provider.dart';
+import 'presentation/providers/watchlist_provider.dart';
+import 'presentation/providers/watch_history_provider.dart';
+import 'presentation/providers/movie_rating_provider.dart';
+import 'presentation/providers/recommendation_provider.dart';
+import 'presentation/providers/admin_movie_provider.dart';
+import 'presentation/providers/admin_user_provider.dart';
 import 'data/repositories/auth_repository.dart';
 
 void main() async {
@@ -30,12 +37,29 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => MovieProvider()),
-        ChangeNotifierProvider(create: (_) => VocabularyProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider(), lazy: false),
+        ChangeNotifierProvider(create: (_) => MovieProvider(), lazy: true),
+        ChangeNotifierProvider(create: (_) => VocabularyProvider(), lazy: true),
+        ChangeNotifierProvider(create: (_) => CommentProvider(), lazy: true),
+        ChangeNotifierProvider(create: (_) => WatchlistProvider(), lazy: true),
+        ChangeNotifierProvider(
+          create: (_) => WatchHistoryProvider(),
+          lazy: true,
+        ),
+        ChangeNotifierProvider(
+          create: (_) => MovieRatingProvider(),
+          lazy: true,
+        ),
+        ChangeNotifierProvider(
+          create: (_) => RecommendationProvider(),
+          lazy: true,
+        ),
+        ChangeNotifierProvider(create: (_) => AdminMovieProvider(), lazy: true),
+        ChangeNotifierProvider(create: (_) => AdminUserProvider(), lazy: true),
         StreamProvider(
           create: (_) => AuthRepository().userStream,
           initialData: null,
+          lazy: false,
         ),
       ],
       child: MaterialApp.router(

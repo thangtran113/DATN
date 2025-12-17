@@ -23,6 +23,9 @@ class AppColors {
   static const Color warning = Color(0xFFFFA726); // Cam
   static const Color error = Color(0xFFEF5350); // Đỏ
 
+  /// Màu borders - Added for templates
+  static const Color border = Color(0xFF3b455e); // Border color
+
   /// Màu phụ đề
   static const Color subtitleEnglish = Color(0xFFFFFFFF);
   static const Color subtitleVietnamese = Color(0xFFFFD54F); // Vàng

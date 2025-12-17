@@ -3,7 +3,8 @@ class SavedWord {
   final String id;
   final String userId;
   final String word;
-  final String meaning;
+  final String meaning; // Nghĩa tiếng Anh
+  final String? vietnameseMeaning; // Nghĩa tiếng Việt
   final String? pronunciation;
   final String? example;
   final String? movieId;
@@ -19,6 +20,7 @@ class SavedWord {
     required this.userId,
     required this.word,
     required this.meaning,
+    this.vietnameseMeaning,
     this.pronunciation,
     this.example,
     this.movieId,
@@ -37,6 +39,7 @@ class SavedWord {
       userId: map['userId'] ?? '',
       word: map['word'] ?? '',
       meaning: map['meaning'] ?? '',
+      vietnameseMeaning: map['vietnameseMeaning'],
       pronunciation: map['pronunciation'],
       example: map['example'],
       movieId: map['movieId'],
@@ -57,6 +60,7 @@ class SavedWord {
       'userId': userId,
       'word': word,
       'meaning': meaning,
+      'vietnameseMeaning': vietnameseMeaning,
       'pronunciation': pronunciation,
       'example': example,
       'movieId': movieId,
@@ -75,6 +79,7 @@ class SavedWord {
     String? userId,
     String? word,
     String? meaning,
+    String? vietnameseMeaning,
     String? pronunciation,
     String? example,
     String? movieId,
@@ -90,6 +95,7 @@ class SavedWord {
       userId: userId ?? this.userId,
       word: word ?? this.word,
       meaning: meaning ?? this.meaning,
+      vietnameseMeaning: vietnameseMeaning ?? this.vietnameseMeaning,
       pronunciation: pronunciation ?? this.pronunciation,
       example: example ?? this.example,
       movieId: movieId ?? this.movieId,

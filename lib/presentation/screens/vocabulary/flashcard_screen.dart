@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_animations.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../providers/vocabulary_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../../domain/entities/saved_word.dart';
+import '../../widgets/app_header.dart';
+import '../../widgets/app_footer.dart';
 
-/// Màn hình flashcard để ôn tập từ vựng
+/// Màn hình flashcard - Redesigned to match templates
 class FlashcardScreen extends StatefulWidget {
   const FlashcardScreen({Key? key}) : super(key: key);
 
@@ -15,33 +17,33 @@ class FlashcardScreen extends StatefulWidget {
   State<FlashcardScreen> createState() => _FlashcardScreenState();
 }
 
-class _FlashcardScreenState extends State<FlashcardScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _flipController;
-  late Animation<double> _flipAnimation;
-  bool _showBack = false;
+class _FlashcardScreenState extends State<FlashcardScreen> {
   int _currentIndex = 0;
+  bool _isFlipped = false;
   List<SavedWord> _reviewWords = [];
   final FlutterTts _flutterTts = FlutterTts();
   bool _isSpeaking = false;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _initFlipAnimation();
-    _initTts();
-    _loadReviewWords();
+    _initialize();
   }
 
-  void _initFlipAnimation() {
-    _flipController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
-    );
+  Future<void> _initialize() async {
+    try {
+      await _initTts();
+      await _loadReviewWords();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Lỗi khi tải dữ liệu: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _initTts() async {
@@ -60,17 +62,25 @@ class _FlashcardScreenState extends State<FlashcardScreen>
     final authProvider = context.read<AuthProvider>();
 
     if (authProvider.user == null) {
-      setState(() {
-        _reviewWords = [];
-      });
+      if (mounted) {
+        setState(() {
+          _reviewWords = [];
+          _isLoading = false;
+        });
+      }
       return;
     }
 
     final userId = authProvider.user!.id;
     final words = await vocabularyProvider.getWordsForReview(userId);
-    setState(() {
-      _reviewWords = words;
-    });
+    if (mounted) {
+      setState(() {
+        _reviewWords = words;
+        _isLoading = false;
+        _currentIndex = 0;
+        _isFlipped = false;
+      });
+    }
   }
 
   Future<void> _speakWord() async {
@@ -86,42 +96,20 @@ class _FlashcardScreenState extends State<FlashcardScreen>
     await _flutterTts.speak(_reviewWords[_currentIndex].word);
   }
 
-  void _flipCard() {
-    if (_showBack) {
-      _flipController.reverse();
-    } else {
-      _flipController.forward();
-    }
-    setState(() => _showBack = !_showBack);
-  }
-
-  void _onSwipeLeft() {
-    // Chưa biết - Giảm mastery
-    _handleAnswer(false);
-  }
-
-  void _onSwipeRight() {
-    // Đã biết - Tăng mastery
-    _handleAnswer(true);
-  }
-
-  Future<void> _handleAnswer(bool isCorrect) async {
+  void _handleNext() async {
     if (_reviewWords.isEmpty) return;
 
     final vocabularyProvider = context.read<VocabularyProvider>();
     final currentWord = _reviewWords[_currentIndex];
 
-    // Cập nhật mastery level
-    await vocabularyProvider.updateMasteryLevel(currentWord.id, isCorrect);
+    // Update mastery (assume user knows the word when pressing next)
+    await vocabularyProvider.updateMasteryLevel(currentWord.id, true);
 
-    // Chuyển sang thẻ tiếp theo
     setState(() {
       if (_currentIndex < _reviewWords.length - 1) {
         _currentIndex++;
-        _showBack = false;
-        _flipController.reset();
+        _isFlipped = false;
       } else {
-        // Hết flashcard
         _showCompletionDialog();
       }
     });
@@ -132,56 +120,51 @@ class _FlashcardScreenState extends State<FlashcardScreen>
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.backgroundCard,
         title: const Text(
           '🎉 Hoàn thành!',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: AppColors.textPrimary),
         ),
         content: Text(
           'Bạn đã ôn tập xong ${_reviewWords.length} từ vựng!',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(
-                dialogContext,
-              ).pop('continue'); // Đóng dialog với result
-            },
-            child: const Text('Ôn tiếp'),
+            onPressed: () => Navigator.of(dialogContext).pop('continue'),
+            child: const Text(
+              'Ôn tiếp',
+              style: TextStyle(color: AppColors.accent),
+            ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop('exit'); // Đóng dialog với result
-            },
-            child: const Text('Xong'),
+            onPressed: () => Navigator.of(dialogContext).pop('exit'),
+            child: const Text(
+              'Xong',
+              style: TextStyle(color: AppColors.accent),
+            ),
           ),
         ],
       ),
     );
 
-    // Xử lý sau khi dialog đóng
     if (!mounted) return;
 
     if (result == 'continue') {
-      // Reset và reload lại danh sách
       setState(() {
         _currentIndex = 0;
-        _showBack = false;
-        _flipController.reset();
+        _isFlipped = false;
       });
-      await _loadReviewWords(); // Reload từ cần ôn
+      await _loadReviewWords();
     } else if (result == 'exit') {
-      // Quay về trang vocabulary hoặc home
       if (mounted) {
-        context.go('/vocabulary'); // Dùng go_router thay vì Navigator.pop
+        context.go('/vocabulary');
       }
     }
   }
 
   @override
   void dispose() {
-    _flipController.dispose();
     _flutterTts.stop();
     super.dispose();
   }
@@ -189,90 +172,203 @@ class _FlashcardScreenState extends State<FlashcardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF141414),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Flashcard Ôn Tập'),
-        centerTitle: true,
-        actions: [
-          // Hiển thị tiến độ
-          if (_reviewWords.isNotEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Text(
-                  '${_currentIndex + 1}/${_reviewWords.length}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-      body: _reviewWords.isEmpty
-          ? _buildEmptyState()
-          : Column(
-              children: [
-                // Progress bar
-                FadeInWidget(
-                  duration: const Duration(milliseconds: 400),
-                  child: LinearProgressIndicator(
-                    value: (_currentIndex + 1) / _reviewWords.length,
-                    backgroundColor: Colors.grey[800],
-                    color: const Color(0xFFE50914),
-                    minHeight: 4,
-                  ),
-                ),
-
-                Expanded(
-                  child: Center(
-                    child: ScaleInAnimation(
-                      delay: const Duration(milliseconds: 200),
-                      child: _buildFlashcard(),
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          const AppHeader(),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.accent),
+                  )
+                : _errorMessage != null
+                ? _buildErrorState()
+                : _reviewWords.isEmpty
+                ? _buildEmptyState()
+                : SingleChildScrollView(
+                    child: Column(
+                      children: [_buildFlashcardContent(), const AppFooter()],
                     ),
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlashcardContent() {
+    final currentWord = _reviewWords[_currentIndex];
+    final progress = (_currentIndex + 1) / _reviewWords.length;
+
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 1000, minHeight: 600),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Progress
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Card: ${_currentIndex + 1}/${_reviewWords.length}',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-
-                // Action buttons with animation
-                SlideInFromBottom(
-                  delay: const Duration(milliseconds: 400),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        // Chưa biết
-                        _buildActionButton(
-                          icon: Icons.close,
-                          label: 'Chưa biết',
-                          color: Colors.red,
-                          onPressed: _onSwipeLeft,
-                        ),
-
-                        // Lật thẻ
-                        _buildActionButton(
-                          icon: Icons.flip,
-                          label: 'Lật thẻ',
-                          color: Colors.blue,
-                          onPressed: _flipCard,
-                        ),
-
-                        // Đã biết
-                        _buildActionButton(
-                          icon: Icons.check,
-                          label: 'Đã biết',
-                          color: Colors.green,
-                          onPressed: _onSwipeRight,
-                        ),
-                      ],
+                const SizedBox(height: 8),
+                Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progress,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+
+            // Card
+            Container(
+              constraints: const BoxConstraints(minHeight: 400),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.backgroundCard),
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Use responsive layout
+                  if (constraints.maxWidth > 600) {
+                    return _buildCardContentWide(currentWord);
+                  } else {
+                    return _buildCardContentNarrow(currentWord);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Next button
+            SizedBox(
+              width: 300,
+              child: ElevatedButton(
+                onPressed: _handleNext,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Next',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardContentWide(SavedWord word) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Image placeholder (if movie has image)
+        const SizedBox(width: 32),
+        // Content
+        Expanded(flex: 1, child: _buildCardText(word)),
+      ],
+    );
+  }
+
+  Widget _buildCardContentNarrow(SavedWord word) {
+    return Column(
+      children: [
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.backgroundCard,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.movie,
+              size: 64,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildCardText(word),
+      ],
+    );
+  }
+
+  Widget _buildCardText(SavedWord word) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Word with speaker icon
+        Row(
+          children: [
+            Text(
+              word.word,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              icon: Icon(
+                _isSpeaking ? Icons.stop_circle : Icons.volume_up,
+                color: AppColors.accent,
+              ),
+              onPressed: _speakWord,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // English definition
+        Text(
+          word.meaning,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 18),
+        ),
+        const SizedBox(height: 16),
+
+        // Vietnamese definition
+        Text(
+          word.vietnameseMeaning ?? '(Chưa có bản dịch)',
+          style: TextStyle(
+            color: AppColors.textSecondary.withValues(alpha: 0.8),
+            fontSize: 18,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
     );
   }
 
@@ -281,239 +377,56 @@ class _FlashcardScreenState extends State<FlashcardScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.check_circle_outline, size: 80, color: Colors.grey[600]),
+          Icon(
+            Icons.check_circle_outline,
+            size: 80,
+            color: AppColors.textSecondary.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Không có từ vựng nào cần ôn!',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => context.go('/vocabulary'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textPrimary,
+            ),
+            child: const Text('Quay về'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.error, size: 64),
           const SizedBox(height: 16),
           Text(
-            'Không có từ nào cần ôn tập',
-            style: TextStyle(color: Colors.grey[400], fontSize: 18),
+            _errorMessage!,
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Hãy thêm từ vựng để bắt đầu học!',
-            style: TextStyle(color: Colors.grey[500], fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFlashcard() {
-    final word = _reviewWords[_currentIndex];
-
-    return GestureDetector(
-      onTap: _flipCard,
-      child: AnimatedBuilder(
-        animation: _flipAnimation,
-        builder: (context, child) {
-          final angle = _flipAnimation.value * 3.14159;
-          final isFront = angle < 1.5708; // 90 degrees
-
-          return Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.001)
-              ..rotateY(angle),
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.85,
-              height: MediaQuery.of(context).size.height * 0.5,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isFront
-                      ? [const Color(0xFF1E1E1E), const Color(0xFF2C2C2C)]
-                      : [const Color(0xFF0EA5E9), const Color(0xFF0284C7)],
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: isFront
-                  ? _buildFrontCard(word)
-                  : Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()..rotateY(3.14159),
-                      child: _buildBackCard(word),
-                    ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildFrontCard(SavedWord word) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Từ vựng
-          Text(
-            word.word,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-
-          // Phiên âm
-          if (word.pronunciation != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              word.pronunciation!,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 20,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-
           const SizedBox(height: 24),
-
-          // Nút phát âm
-          ElevatedButton.icon(
-            onPressed: _speakWord,
-            icon: Icon(_isSpeaking ? Icons.stop : Icons.volume_up),
-            label: Text(_isSpeaking ? 'Dừng' : 'Phát âm'),
+          ElevatedButton(
+            onPressed: _initialize,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE50914),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textPrimary,
             ),
-          ),
-
-          const Spacer(),
-
-          // Hint
-          Text(
-            'Nhấn để lật thẻ',
-            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            child: const Text('Thử lại'),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBackCard(SavedWord word) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Nghĩa
-          const Text(
-            'Nghĩa:',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            word.meaning,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              height: 1.5,
-            ),
-          ),
-
-          // Ví dụ
-          if (word.example != null) ...[
-            const SizedBox(height: 24),
-            const Text(
-              'Ví dụ:',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              word.example!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontStyle: FontStyle.italic,
-                height: 1.5,
-              ),
-            ),
-          ],
-
-          const Spacer(),
-
-          // Mastery level
-          _buildMasteryLevelIndicator(word.masteryLevel),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMasteryLevelIndicator(int level) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.star,
-            color: Color(
-              int.parse(
-                SavedWord.getMasteryColor(level).replaceFirst('#', '0xFF'),
-              ),
-            ),
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            SavedWord.getMasteryLabel(level),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FloatingActionButton(
-          onPressed: onPressed,
-          backgroundColor: color,
-          child: Icon(icon, size: 32),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-      ],
     );
   }
 }

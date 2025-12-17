@@ -46,10 +46,58 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+
+        // Dịch các lỗi Firebase phổ biến sang tiếng Việt
+        if (errorMessage.contains('auth credential is incorrect') ||
+            errorMessage.contains('wrong-password') ||
+            errorMessage.contains('invalid-credential')) {
+          errorMessage = 'Tên đăng nhập hoặc mật khẩu không đúng';
+        } else if (errorMessage.contains('user-not-found')) {
+          errorMessage = 'Không tìm thấy tài khoản';
+        } else if (errorMessage.contains('too-many-requests')) {
+          errorMessage = 'Quá nhiều lần thử. Vui lòng thử lại sau';
+        } else if (errorMessage.contains('network-request-failed')) {
+          errorMessage = 'Lỗi kết nối mạng';
+        } else {
+          // Loại bỏ "Exception: " khỏi thông báo
+          errorMessage = errorMessage.replaceAll('Exception: ', '');
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(errorMessage),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final authRepo = AuthRepository();
+      final user = await authRepo.signInWithGoogle();
+
+      if (mounted) {
+        context.read<AuthProvider>().setUser(user);
+        context.go('/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = e.toString();
+        errorMessage = errorMessage.replaceAll('Exception: ', '');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -88,9 +136,9 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             },
           ),
-          // Dark overlay
+          // Lớp phủ tối
           Container(color: Colors.black.withValues(alpha: 0.35)),
-          // Content
+          // Nội dung
           SafeArea(
             child: Center(
               child: Container(
@@ -98,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Left side - Welcome text
+                    // Phía trái - Văn bản chào mừng
                     Expanded(
                       flex: 1,
                       child: Padding(
@@ -161,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     SizedBox(width: AppSpacing.xl),
 
-                    // Right side - Login form
+                    // Phía phải - Form đăng nhập
                     Expanded(
                       flex: 1,
                       child: Container(
@@ -201,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                 // Title
                                 Text(
-                                  'Login to continue',
+                                  'Học và Thư giãn',
                                   style: Theme.of(context)
                                       .textTheme
                                       .headlineMedium
@@ -213,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 AppSpacing.gapXS,
                                 Text(
-                                  'Learn and Relax',
+                                  'Đăng nhập để tiếp tục',
                                   style: Theme.of(context).textTheme.bodyLarge
                                       ?.copyWith(
                                         color: AppColors.textSecondary,
@@ -223,21 +271,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 AppSpacing.gapLG,
 
-                                // Username Field
+                                // Trường tên đăng nhập
                                 TextFormField(
                                   controller: _usernameController,
                                   keyboardType: TextInputType.text,
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
-                                      return 'Please enter username';
+                                      return 'Vui lòng nhập tên đăng nhập';
                                     }
                                     if (value.length < 3) {
-                                      return 'Username must be at least 3 characters';
+                                      return 'Tên đăng nhập phải có ít nhất 3 ký tự';
                                     }
                                     return null;
                                   },
                                   decoration: const InputDecoration(
-                                    labelText: 'Username',
+                                    labelText: 'Tên đăng nhập',
                                     prefixIcon: const Icon(
                                       Icons.person_outline_rounded,
                                     ),
@@ -245,13 +293,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 AppSpacing.gapMD,
 
-                                // Password Field
+                                // Trường mật khẩu
                                 TextFormField(
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   validator: Validators.validatePassword,
+                                  onFieldSubmitted: (_) {
+                                    if (!_isLoading) {
+                                      _signInWithUsername();
+                                    }
+                                  },
                                   decoration: InputDecoration(
-                                    labelText: 'Password',
+                                    labelText: 'Mật khẩu',
                                     prefixIcon: const Icon(
                                       Icons.lock_outline_rounded,
                                     ),
@@ -272,7 +325,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 AppSpacing.gapSM,
 
-                                // Forgot Password
+                                // Quên mật khẩu
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: TextButton(
@@ -280,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       // Chức năng quên mật khẩu - sẽ implement sau
                                     },
                                     child: Text(
-                                      'Forgot Password?',
+                                      'Quên mật khẩu?',
                                       style: TextStyle(
                                         color: AppColors.primary,
                                       ),
@@ -289,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 AppSpacing.gapXL,
 
-                                // Sign In Button
+                                // Nút đăng nhập
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton(
@@ -317,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                           )
                                         : const Text(
-                                            'Sign In',
+                                            'Đăng nhập',
                                             style: TextStyle(
                                               fontSize: AppFontSizes.lg,
                                               fontWeight: FontWeight.w600,
@@ -326,14 +379,86 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                   ),
                                 ),
+                                AppSpacing.gapMD,
+
+                                // Đường phân cách
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Divider(
+                                        color: AppColors.textSecondary
+                                            .withAlpha(51),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.md,
+                                      ),
+                                      child: Text(
+                                        'Hoặc',
+                                        style: TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: AppFontSizes.sm,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Divider(
+                                        color: AppColors.textSecondary
+                                            .withAlpha(51),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                AppSpacing.gapMD,
+
+                                // Nút đăng nhập Google
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    onPressed: _isLoading
+                                        ? null
+                                        : _signInWithGoogle,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      side: BorderSide(
+                                        color: AppColors.textSecondary
+                                            .withAlpha(51),
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: AppSpacing.md,
+                                        horizontal: AppSpacing.md,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.g_mobiledata_rounded,
+                                          size: 28,
+                                          color: AppColors.primary,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        const Text(
+                                          'Đăng nhập với Google',
+                                          style: TextStyle(
+                                            fontSize: AppFontSizes.lg,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                                 AppSpacing.gapXXL,
 
-                                // Sign Up Link
+                                // Liên kết đăng ký
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      "Don't have an account? ",
+                                      "Chưa có tài khoản? ",
                                       style: TextStyle(
                                         color: AppColors.textSecondary,
                                         fontSize: AppFontSizes.md,
@@ -350,7 +475,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       ),
                                       child: Text(
-                                        'Sign Up',
+                                        'Đăng ký',
                                         style: TextStyle(
                                           color: AppColors.primary,
                                           fontWeight: FontWeight.w600,

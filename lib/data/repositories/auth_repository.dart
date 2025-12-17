@@ -151,6 +151,64 @@ class AuthRepository {
     }
   }
 
+  /// Đăng nhập bằng Google (dùng Firebase signInWithPopup)
+  Future<User> signInWithGoogle() async {
+    try {
+      // Create a GoogleAuthProvider
+      final googleProvider = firebase_auth.GoogleAuthProvider();
+
+      // Add scopes
+      googleProvider.addScope('email');
+      googleProvider.addScope('profile');
+
+      // Set custom parameters
+      googleProvider.setCustomParameters({'prompt': 'select_account'});
+
+      // Sign in with popup - CORS warning is OK, login still works
+      final userCredential = await _firebaseAuth.signInWithPopup(
+        googleProvider,
+      );
+
+      if (userCredential.user == null) {
+        throw Exception('Đăng nhập thất bại');
+      }
+
+      // Check if user exists in Firestore
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        // Create new user in Firestore
+        final newUser = User(
+          id: userCredential.user!.uid,
+          username: userCredential.user!.email!.split('@')[0].toLowerCase(),
+          email: userCredential.user!.email!,
+          displayName: userCredential.user!.displayName,
+          photoUrl: userCredential.user!.photoURL,
+          createdAt: DateTime.now(),
+          lastLoginAt: DateTime.now(),
+        );
+        await _createUserInFirestore(newUser);
+        return newUser;
+      } else {
+        // Update last login time
+        await _updateLastLoginTime(userCredential.user!.uid);
+        return _getUserFromFirestore(userCredential.user!.uid);
+      }
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'popup-closed-by-user') {
+        throw Exception('Đăng nhập bị hủy');
+      } else if (e.code == 'popup-blocked') {
+        throw Exception('Popup bị chặn bởi trình duyệt');
+      }
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception('Lỗi đăng nhập Google: $e');
+    }
+  }
+
   /// Đăng xuất
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
@@ -170,17 +228,153 @@ class AuthRepository {
     String? displayName,
     String? photoUrl,
   }) async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) throw Exception('Chưa đăng nhập');
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) throw Exception('Chưa đăng nhập');
 
-    if (displayName != null) await user.updateDisplayName(displayName);
-    if (photoUrl != null) await user.updatePhotoURL(photoUrl);
+      if (displayName != null) await user.updateDisplayName(displayName);
+      if (photoUrl != null) await user.updatePhotoURL(photoUrl);
 
-    // Cập nhật Firestore
-    await _firestore.collection('users').doc(user.uid).update({
-      if (displayName != null) 'displayName': displayName,
-      if (photoUrl != null) 'photoUrl': photoUrl,
-    });
+      // Cập nhật Firestore
+      await _firestore.collection('users').doc(user.uid).update({
+        if (displayName != null) 'displayName': displayName,
+        if (photoUrl != null) 'photoUrl': photoUrl,
+      });
+    } catch (e) {
+      throw Exception('Cập nhật thông tin thất bại: $e');
+    }
+  }
+
+  /// Đổi mật khẩu
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) throw Exception('Chưa đăng nhập');
+
+      // Re-authenticate user với mật khẩu hiện tại
+      final credential = firebase_auth.EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+
+      // Đổi mật khẩu
+      await user.updatePassword(newPassword);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password') {
+        throw Exception('Mật khẩu hiện tại không đúng');
+      } else if (e.code == 'weak-password') {
+        throw Exception('Mật khẩu mới quá yếu');
+      } else {
+        throw Exception(_handleAuthException(e));
+      }
+    } catch (e) {
+      throw Exception('Đổi mật khẩu thất bại: $e');
+    }
+  }
+
+  /// Xóa tài khoản người dùng
+  Future<void> deleteAccount({String? currentPassword}) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) throw Exception('Chưa đăng nhập');
+
+      // Kiểm tra loại đăng nhập và re-authenticate nếu cần
+      final providerData = user.providerData;
+      if (providerData.isNotEmpty) {
+        final providerId = providerData.first.providerId;
+
+        // Nếu là Email/Password, cần re-authenticate
+        if (providerId == 'password') {
+          if (currentPassword == null || currentPassword.isEmpty) {
+            throw Exception('Vui lòng nhập mật khẩu để xác nhận');
+          }
+          final credential = firebase_auth.EmailAuthProvider.credential(
+            email: user.email!,
+            password: currentPassword,
+          );
+          await user.reauthenticateWithCredential(credential);
+        }
+        // Nếu là Google Sign-In, không cần re-authenticate với password
+      }
+
+      // Xóa tất cả dữ liệu liên quan của user
+      final batch = _firestore.batch();
+
+      // Xóa user document
+      batch.delete(_firestore.collection('users').doc(user.uid));
+
+      // Xóa saved_words
+      final savedWordsQuery = await _firestore
+          .collection('saved_words')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      for (final doc in savedWordsQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Xóa watch_history
+      final watchHistoryQuery = await _firestore
+          .collection('watch_history')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      for (final doc in watchHistoryQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Xóa watchlist
+      final watchlistQuery = await _firestore
+          .collection('watchlist')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      for (final doc in watchlistQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Xóa ratings
+      final ratingsQuery = await _firestore
+          .collection('movie_ratings')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      for (final doc in ratingsQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Commit batch delete
+      await batch.commit();
+
+      // Cập nhật comments: Không xóa, chỉ thay đổi userName và xóa userAvatar
+      final commentsQuery = await _firestore
+          .collection('comments')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      final commentBatch = _firestore.batch();
+      for (final doc in commentsQuery.docs) {
+        commentBatch.update(doc.reference, {
+          'userName': 'Người dùng đã xóa tài khoản',
+          'userAvatar': null,
+        });
+      }
+      await commentBatch.commit();
+
+      // Xóa tài khoản Firebase Auth (phải làm cuối cùng)
+      await user.delete();
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password') {
+        throw Exception('Mật khẩu không đúng');
+      } else if (e.code == 'requires-recent-login') {
+        throw Exception('Vui lòng đăng nhập lại để xóa tài khoản');
+      } else {
+        throw Exception(_handleAuthException(e));
+      }
+    } catch (e) {
+      throw Exception('Xóa tài khoản thất bại: $e');
+    }
   }
 
   /// Lấy thông tin user từ Firestore

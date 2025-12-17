@@ -65,7 +65,7 @@ class AppFooter extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Learn English through movies',
+                    'Học tiếng Anh qua phim ảnh',
                     style: TextStyle(
                       color: Colors.grey,
                       fontSize: 12,
@@ -77,27 +77,27 @@ class AppFooter extends StatelessWidget {
             ),
             const SizedBox(width: 40),
             Expanded(
-              child: _buildFooterSection('Quick Links', [
-                'Movies',
-                'My List',
-                'Browse by Genre',
-                'New Releases',
+              child: _buildFooterSection('Liên kết nhanh', [
+                'Phim',
+                'Danh sách của tôi',
+                'Duyệt theo thể loại',
+                'Phim mới',
               ]),
             ),
             Expanded(
-              child: _buildFooterSection('Resources', [
-                'How It Works',
-                'FAQ',
+              child: _buildFooterSection('Tài nguyên', [
+                'Cách sử dụng',
+                'Câu hỏi thường gặp',
                 'Blog',
-                'Support',
+                'Hỗ trợ',
               ]),
             ),
             Expanded(
-              child: _buildFooterSection('Legal', [
-                'Terms of Service',
-                'Privacy Policy',
-                'Cookie Policy',
-                'Contact Us',
+              child: _buildFooterSection('Pháp lý', [
+                'Điều khoản dịch vụ',
+                'Chính sách bảo mật',
+                'Chính sách Cookie',
+                'Liên hệ',
               ]),
             ),
           ],
@@ -109,7 +109,7 @@ class AppFooter extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              '© 2024 CineChill',
+              '© 2025 CineChill',
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
             Row(

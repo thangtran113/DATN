@@ -20,6 +20,18 @@ class _MovieListScreenState extends State<MovieListScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedGenre;
 
+  // Map để convert tên tiếng Việt sang tiếng Anh
+  final Map<String, String> _genreMap = {
+    'Hành động': 'Action',
+    'Tình cảm': 'Romance',
+    'Khoa học viễn tưởng': 'Science Fiction',
+    'Hoạt hình': 'Animation',
+    'Kinh dị': 'Horror',
+    'Hài hước': 'Comedy',
+    'Tâm lý': 'Drama',
+    'Phiêu lưu': 'Adventure',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -107,8 +119,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
                               onPressed: () {
                                 // Filter action
                               },
-                              icon: const Icon(Icons.filter_list, size: 20),
-                              label: const Text('Lọc'),
+                              label: const Text('Tìm Kiếm'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFE50914),
                                 foregroundColor: Colors.white,
@@ -126,79 +137,75 @@ class _MovieListScreenState extends State<MovieListScreen> {
                       ),
                     ),
 
-                    // Breadcrumb
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 8,
-                        ),
-                        child: Text(
-                          'Phim / ${movieProvider.movies.length} phim',
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ),
-
                     // Movies grid
-                    if (movieProvider.isLoading && movieProvider.movies.isEmpty)
-                      const SliverFillRemaining(
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFFE50914),
-                          ),
-                        ),
-                      )
-                    else if (movieProvider.movies.isEmpty)
-                      const SliverFillRemaining(
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.movie_outlined,
-                                size: 80,
-                                color: Colors.grey,
+                    Builder(
+                      builder: (context) {
+                        final displayMovies = _searchController.text.isNotEmpty
+                            ? movieProvider.searchResults
+                            : movieProvider.movies;
+
+                        if (movieProvider.isLoading && displayMovies.isEmpty)
+                          return const SliverFillRemaining(
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFE50914),
                               ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Không tìm thấy phim',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 18,
+                            ),
+                          );
+
+                        if (displayMovies.isEmpty)
+                          return SliverFillRemaining(
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.movie_outlined,
+                                    size: 80,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _searchController.text.isNotEmpty
+                                        ? 'Không tìm thấy phim "${_searchController.text}"'
+                                        : 'Không tìm thấy phim',
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+
+                        return SliverPadding(
+                          padding: const EdgeInsets.all(20),
+                          sliver: SliverGrid(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: _getGridColumns(context),
+                                  childAspectRatio: 0.65,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 20,
                                 ),
-                              ),
-                            ],
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
+                              final movie = displayMovies[index];
+                              // Add staggered animation to movie cards
+                              return SlideInFromBottom(
+                                delay: Duration(
+                                  milliseconds: 50 * (index % 10),
+                                ),
+                                child: _buildRoPhimCard(movie),
+                              );
+                            }, childCount: displayMovies.length),
                           ),
-                        ),
-                      )
-                    else
-                      SliverPadding(
-                        padding: const EdgeInsets.all(20),
-                        sliver: SliverGrid(
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: _getGridColumns(context),
-                                childAspectRatio: 0.65,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 20,
-                              ),
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            final movie = movieProvider.movies[index];
-                            // Add staggered animation to movie cards
-                            return SlideInFromBottom(
-                              delay: Duration(milliseconds: 50 * (index % 10)),
-                              child: _buildRoPhimCard(movie),
-                            );
-                          }, childCount: movieProvider.movies.length),
-                        ),
-                      ),
+                        );
+                      },
+                    ),
 
                     // Loading more
                     if (movieProvider.isLoadingMore)
@@ -349,10 +356,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          // Filter by genre/country/year
-          setState(() {
-            _selectedGenre = label;
-          });
+          _handleFilterSelection(label);
         },
         hoverColor: const Color(0xFF2A2A2A),
         child: Container(
@@ -392,6 +396,65 @@ class _MovieListScreenState extends State<MovieListScreen> {
         ),
       ),
     );
+  }
+
+  void _handleFilterSelection(String label) {
+    final movieProvider = Provider.of<MovieProvider>(context, listen: false);
+
+    setState(() {
+      // Clear search khi filter
+      _searchController.clear();
+      movieProvider.clearSearch();
+
+      // Nếu click vào item đang active thì bỏ filter
+      if (_selectedGenre == label) {
+        _selectedGenre = null;
+        movieProvider.fetchMovies();
+        return;
+      }
+
+      _selectedGenre = label;
+
+      // Xác định loại filter
+      if (_genreMap.containsKey(label)) {
+        // Lọc theo thể loại
+        final englishGenre = _genreMap[label]!;
+        movieProvider.filterByGenre(englishGenre);
+      } else if (['2024', '2023', '2022', '2021', '2020'].contains(label)) {
+        // Lọc theo năm
+        movieProvider.filterByYear(int.parse(label));
+      } else if (label == 'Cũ hơn') {
+        // Lọc phim cũ hơn (trước 2020)
+        movieProvider.filterByYear(2019);
+      } else if ([
+        'Âu Mỹ',
+        'Hàn Quốc',
+        'Nhật Bản',
+        'Trung Quốc',
+        'Việt Nam',
+        'Thái Lan',
+      ].contains(label)) {
+        // Lọc theo quốc gia
+        // Map tên tiếng Việt sang từ khóa search
+        final countryKeywords = {
+          'Âu Mỹ': 'United States',
+          'Hàn Quốc': 'Korea',
+          'Nhật Bản': 'Japan',
+          'Trung Quốc': 'China',
+          'Việt Nam': 'Vietnam',
+          'Thái Lan': 'Thailand',
+        };
+        movieProvider.filterByCountry(countryKeywords[label] ?? label);
+      } else {
+        // Hiển thị tất cả phim
+        movieProvider.fetchMovies();
+      }
+    });
+
+    // Đóng drawer nếu đang mở (mobile)
+    if (MediaQuery.of(context).size.width < 600) {
+      Navigator.pop(context);
+    }
   }
 
   Widget _buildRoPhimCard(movie) {
@@ -463,28 +526,6 @@ class _MovieListScreenState extends State<MovieListScreen> {
                             color: Colors.white,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Play overlay on hover
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withAlpha(179),
-                            ],
-                          ),
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.play_circle_outline,
-                            color: Colors.white,
-                            size: 50,
                           ),
                         ),
                       ),

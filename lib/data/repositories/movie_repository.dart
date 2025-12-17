@@ -42,18 +42,22 @@ class MovieRepository {
     }
   }
 
-  /// Tìm kiếm phim theo tên
+  /// Tìm kiếm phim theo tên (không phân biệt chữ hoa/thường)
   Future<List<Movie>> searchMovies(String query) async {
     try {
+      // Lấy tất cả phim để search ở client side (case-insensitive)
       final snapshot = await _firestore
           .collection('movies')
-          .where('title', isGreaterThanOrEqualTo: query)
-          .where('title', isLessThanOrEqualTo: '$query\uf8ff')
-          .limit(20)
+          .orderBy('title')
+          .limit(100)
           .get();
 
+      final queryLower = query.toLowerCase().trim();
+
+      // Filter ở client side để không phân biệt hoa/thường
       return snapshot.docs
           .map((doc) => Movie.fromJson({...doc.data(), 'id': doc.id}))
+          .where((movie) => movie.title.toLowerCase().contains(queryLower))
           .toList();
     } catch (e) {
       throw Exception('Không thể tìm kiếm phim: $e');
@@ -77,12 +81,12 @@ class MovieRepository {
     }
   }
 
-  /// Lọc phim theo cấp độ
-  Future<List<Movie>> getMoviesByLevel(String level, {int limit = 20}) async {
+  /// Lọc phim theo năm
+  Future<List<Movie>> getMoviesByYear(int year, {int limit = 50}) async {
     try {
       final snapshot = await _firestore
           .collection('movies')
-          .where('level', isEqualTo: level)
+          .where('year', isEqualTo: year)
           .limit(limit)
           .get();
 
@@ -90,16 +94,40 @@ class MovieRepository {
           .map((doc) => Movie.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
     } catch (e) {
-      throw Exception('Không thể tải phim theo cấp độ: $e');
+      throw Exception('Không thể tải phim theo năm: $e');
     }
   }
 
-  /// Lấy phim phổ biến (theo lượt xem)
+  /// Lọc phim theo quốc gia (case-insensitive search)
+  Future<List<Movie>> getMoviesByCountry(
+    String countryQuery, {
+    int limit = 100,
+  }) async {
+    try {
+      // Lấy tất cả phim và filter ở client side
+      final snapshot = await _firestore.collection('movies').limit(limit).get();
+
+      final queryLower = countryQuery.toLowerCase().trim();
+
+      return snapshot.docs
+          .map((doc) => Movie.fromJson({...doc.data(), 'id': doc.id}))
+          .where(
+            (movie) =>
+                movie.country != null &&
+                movie.country!.toLowerCase().contains(queryLower),
+          )
+          .toList();
+    } catch (e) {
+      throw Exception('Không thể tải phim theo quốc gia: $e');
+    }
+  }
+
+  /// Lấy phim phổ biến (theo rating)
   Future<List<Movie>> getPopularMovies({int limit = 20}) async {
     try {
       final snapshot = await _firestore
           .collection('movies')
-          .orderBy('viewCount', descending: true)
+          .orderBy('rating', descending: true)
           .limit(limit)
           .get();
 
@@ -108,18 +136,6 @@ class MovieRepository {
           .toList();
     } catch (e) {
       throw Exception('Không thể tải phim phổ biến: $e');
-    }
-  }
-
-  /// Tăng lượt xem phim
-  Future<void> incrementViewCount(String movieId) async {
-    try {
-      await _firestore.collection('movies').doc(movieId).update({
-        'viewCount': FieldValue.increment(1),
-        'updatedAt': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      print('Không thể tăng lượt xem: $e');
     }
   }
 

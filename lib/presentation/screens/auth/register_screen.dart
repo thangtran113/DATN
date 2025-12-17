@@ -48,7 +48,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _usernameError = isAvailable ? null : 'Username already taken';
       });
     } catch (e) {
-      // Ignore error, will be caught during registration
+      // Bỏ qua lỗi, sẽ được bắt trong quá trình đăng ký
     }
   }
 
@@ -57,7 +57,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (_usernameError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_usernameError!), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(_usernameError!),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 1),
+        ),
       );
       return;
     }
@@ -65,8 +69,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please accept the Terms and Conditions'),
+          content: Text('Vui lòng chấp nhận Điều khoản và Điều kiện'),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 1),
         ),
       );
       return;
@@ -88,10 +93,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Account created successfully! Please sign in.',
+              'Tạo tài khoản thành công! Vui lòng đăng nhập.',
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 1),
           ),
         );
 
@@ -104,6 +109,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           SnackBar(
             content: Text(e.toString()),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -141,9 +147,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               );
             },
           ),
-          // Dark overlay
+          // Lớp phủ tối
           Container(color: Colors.black.withValues(alpha: 0.35)),
-          // Content
+          // Nội dung
           SafeArea(
             child: Center(
               child: Container(
@@ -151,7 +157,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Left side - Welcome text
+                    // Phía trái - Văn bản chào mừng
                     Expanded(
                       flex: 1,
                       child: Padding(
@@ -187,7 +193,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 letterSpacing: -1.5,
                                 shadows: [
                                   Shadow(
-                                    color: AppColors.primary.withValues(alpha: 0.5),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.5,
+                                    ),
                                     offset: Offset(0, 4),
                                     blurRadius: 12,
                                   ),
@@ -212,7 +220,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     SizedBox(width: AppSpacing.xl),
 
-                    // Right side - Register form
+                    // Phía phải - Form đăng ký
                     Expanded(
                       flex: 1,
                       child: Container(
@@ -274,7 +282,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   AppSpacing.gapXL,
 
-                                  // Name Field
+                                  // Trường tên
                                   TextFormField(
                                     controller: _nameController,
                                     validator: Validators.validateName,
@@ -327,7 +335,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   const SizedBox(height: 16),
 
-                                  // Email Field
+                                  // Trường email
                                   TextFormField(
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
@@ -339,7 +347,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   const SizedBox(height: 16),
 
-                                  // Password Field
+                                  // Trường mật khẩu
                                   TextFormField(
                                     controller: _passwordController,
                                     obscureText: _obscurePassword,
@@ -366,7 +374,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   const SizedBox(height: 16),
 
-                                  // Confirm Password Field
+                                  // Trường xác nhận mật khẩu
                                   TextFormField(
                                     controller: _confirmPasswordController,
                                     obscureText: _obscureConfirmPassword,
@@ -397,7 +405,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   const SizedBox(height: 24),
 
-                                  // Terms and Conditions Checkbox
+                                  // Checkbox điều khoản và điều kiện
                                   Row(
                                     children: [
                                       Checkbox(
@@ -473,7 +481,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   const SizedBox(height: 32),
 
-                                  // Sign In Link
+                                  // Liên kết đăng nhập
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [

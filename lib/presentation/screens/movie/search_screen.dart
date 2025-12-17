@@ -14,7 +14,6 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedGenre;
-  String? _selectedLevel;
   String? _selectedYear;
 
   final List<String> _genres = [
@@ -28,8 +27,6 @@ class _SearchScreenState extends State<SearchScreen> {
     'Thriller',
     'Animation',
   ];
-
-  final List<String> _levels = ['All', 'Beginner', 'Intermediate', 'Advanced'];
 
   final List<String> _years = [
     'All',
@@ -68,8 +65,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
     if (_selectedGenre != null && _selectedGenre != 'All') {
       movieProvider.filterByGenre(_selectedGenre!);
-    } else if (_selectedLevel != null && _selectedLevel != 'All') {
-      movieProvider.filterByLevel(_selectedLevel!.toLowerCase());
     } else {
       movieProvider.fetchMovies();
     }
@@ -78,7 +73,6 @@ class _SearchScreenState extends State<SearchScreen> {
   void _clearFilters() {
     setState(() {
       _selectedGenre = null;
-      _selectedLevel = null;
       _selectedYear = null;
       _searchController.clear();
     });
@@ -93,7 +87,7 @@ class _SearchScreenState extends State<SearchScreen> {
         backgroundColor: const Color(0xFF0F0F0F),
         elevation: 0,
         title: const Text(
-          'Search Movies',
+          'Tìm Kiếm Phim',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -172,22 +166,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 const SizedBox(width: 8),
 
-                // Level Filter
-                _buildFilterChip(
-                  label: _selectedLevel ?? 'Level',
-                  icon: Icons.school,
-                  onTap: () => _showFilterDialog(
-                    'Select Level',
-                    _levels,
-                    _selectedLevel,
-                    (value) {
-                      setState(() => _selectedLevel = value);
-                      _applyFilters();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-
                 // Year Filter
                 _buildFilterChip(
                   label: _selectedYear ?? 'Year',
@@ -202,9 +180,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(width: 8),
 
                 // Clear Filters
-                if (_selectedGenre != null ||
-                    _selectedLevel != null ||
-                    _selectedYear != null)
+                if (_selectedGenre != null || _selectedYear != null)
                   TextButton.icon(
                     onPressed: _clearFilters,
                     icon: const Icon(Icons.clear, size: 16),

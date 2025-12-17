@@ -2,41 +2,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
     // Users collection
     match /users/{userId} {
       // Allow users to read their own profile
       allow read: if request.auth != null && request.auth.uid == userId;
       
       // Allow anyone to query users by username (for login lookup)
-      // Limit to 1 result to prevent abuse
       allow list: if request.query.limit == 1;
       
-      // Allow users to create their own profile during registration
-      allow create: if request.auth != null 
-        && request.auth.uid == userId
-        && request.resource.data.keys().hasAll(['id', 'username', 'email', 'createdAt'])
-        && request.resource.data.username is string
-        && request.resource.data.username.size() >= 3
-        && request.resource.data.email is string
-        && request.resource.data.email == request.auth.token.email;
+      // Allow authenticated users to list users (for admin features)
+      allow list: if request.auth != null;
+      
+      // Allow users to create their own profile (registration & Google Sign-In)
+      allow create: if request.auth != null && request.auth.uid == userId;
       
       // Allow users to update their own profile
-      allow update: if request.auth != null 
-        && request.auth.uid == userId
-        && request.resource.data.id == resource.data.id
-        && request.resource.data.email == resource.data.email
-        && request.resource.data.username == resource.data.username;
+      allow update: if request.auth != null && request.auth.uid == userId;
       
-      // Don't allow delete
-      allow delete: if false;
+      // Allow admin to update any user
+      allow update: if isAdmin();
+      
+      // Allow users to delete their own account
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow admin to delete users
+      allow delete: if isAdmin();
     }
     
     // Movies collection - read only for authenticated users
     match /movies/{movieId} {
       allow read: if true; // Allow public read for movies
-      allow create, delete: if false; // Only admin can create/delete
-      // Allow update for viewCount increment only
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount', 'updatedAt']);
+      // TODO: Re-enable admin check after testing
+      // Temporarily allow any authenticated user to create movies for testing
+      allow create, update, delete: if request.auth != null; // Temporarily open for testing
+      // allow create, update, delete: if isAdmin(); // Re-enable this later
+      // Regular users cannot update movies
     }
     
     // User progress collection
@@ -58,6 +64,135 @@ service cloud.firestore {
       // Allow update/delete if authenticated and it's user's own vocab
       allow update, delete: if request.auth != null && 
         resource.data.userId == request.auth.uid;
+    }
+    
+    // Saved Words collection
+    match /saved_words/{wordId} {
+      // Allow read/list if authenticated and it's user's own saved words
+      allow read, list: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Allow create if authenticated and userId matches
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid;
+      
+      // Allow update/delete if authenticated and it's user's own saved words
+      allow update, delete: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Watchlist collection
+    match /watchlist/{watchlistId} {
+      // Allow read/list if authenticated and it's user's own watchlist
+      allow read, list: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Allow create if authenticated and userId matches
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'movieId', 'movieTitle', 'addedAt']);
+      
+      // Allow delete if authenticated and it's user's own item
+      allow delete: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Watch History collection
+    match /watch_history/{historyId} {
+      // TODO: Temporarily open for admin statistics - Re-enable proper check after testing
+      allow read, list: if request.auth != null; // Temporarily open for testing
+      // allow read, list: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Allow create/update if authenticated and userId matches
+      allow create, update: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'movieId', 'movieTitle', 'lastWatchedAt', 'progressSeconds', 'totalDurationSeconds', 'completed']);
+      
+      // Allow delete if authenticated and it's user's own item
+      allow delete: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Movie Ratings collection
+    match /movie_ratings/{ratingId} {
+      // Allow anyone to read ratings (public) - needed for statistics
+      allow read, list: if request.auth != null; // Open for authenticated users
+      
+      // Allow authenticated users to create/update their own rating
+      allow create, update: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'movieId', 'rating'])
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      
+      // Allow users to delete their own rating
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+    
+    // Comments collection
+    match /comments/{commentId} {
+      // Allow anyone to read comments (public)
+      allow read: if true;
+      
+      // Allow authenticated users to create comments
+      // For top-level comments: must have movieId and parentCommentId is null
+      // For replies: must have parentCommentId (not null)
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000
+        && (
+          // Top-level comment: has movieId and parentCommentId is null
+          (request.resource.data.keys().hasAny(['movieId']) 
+           && request.resource.data.parentCommentId == null)
+          ||
+          // Reply comment: has parentCommentId (not null)
+          (request.resource.data.parentCommentId != null)
+        );
+      
+      // Allow users to update their own comments (edit text only)
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'updatedAt', 'isEdited'])
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000;
+      
+      // Allow users to delete their own comments
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      
+      // Special rule for updating comments when user deletes account
+      // Allow updating userName to "Người dùng đã xóa tài khoản" and clearing userAvatar
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userName', 'userAvatar'])
+        && request.resource.data.userName == 'Người dùng đã xóa tài khoản'
+        && request.resource.data.userAvatar == null;
+      
+      // Special rule for liking comments (anyone authenticated can like)
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])
+        && (
+          // Adding like: user ID added to likedBy array
+          (request.resource.data.likedBy.hasAll(resource.data.likedBy)
+           && request.resource.data.likedBy.hasOnly([request.auth.uid].concat(resource.data.likedBy)))
+          ||
+          // Removing like: user ID removed from likedBy array
+          (resource.data.likedBy.hasAll(request.resource.data.likedBy)
+           && resource.data.likedBy.removeAll(request.resource.data.likedBy) == [request.auth.uid])
+        );
+      
+      // Special rule for incrementing/decrementing reply count (when adding/deleting replies)
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount']);
+      
+      // Allow authenticated users to report comments
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isReported'])
+        && request.resource.data.isReported == true;
     }
     
     // Default deny all other collections

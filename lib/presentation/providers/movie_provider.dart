@@ -87,10 +87,6 @@ class MovieProvider with ChangeNotifier {
 
     try {
       _selectedMovie = await _movieRepository.getMovieById(movieId);
-      if (_selectedMovie != null) {
-        // Increment view count
-        await _movieRepository.incrementViewCount(movieId);
-      }
       _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString();
@@ -154,15 +150,30 @@ class MovieProvider with ChangeNotifier {
     }
   }
 
-  // Filter by level
-  Future<void> filterByLevel(String level) async {
+  // Filter by year
+  Future<void> filterByYear(int year) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      _movies = await _movieRepository.getMoviesByLevel(level);
+      _movies = await _movieRepository.getMoviesByYear(year);
     } catch (e) {
-      print('Error filtering by level: $e');
+      print('Error filtering by year: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Filter by country
+  Future<void> filterByCountry(String country) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _movies = await _movieRepository.getMoviesByCountry(country);
+    } catch (e) {
+      print('Error filtering by country: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
