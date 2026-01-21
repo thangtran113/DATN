@@ -73,10 +73,14 @@ class AdminMovieProvider with ChangeNotifier {
   /// Update movie
   Future<bool> updateMovie(Movie movie) async {
     try {
+      print('Provider: Starting update for movie ${movie.id}');
       await _repository.updateMovie(movie);
+      print('Provider: Update successful, refreshing list...');
       await loadMovies(); // Refresh list
+      print('Provider: List refreshed');
       return true;
     } catch (e) {
+      print('Provider: Cập nhật thất bại: $e');
       _error = 'Không thể cập nhật phim: $e';
       notifyListeners();
       return false;

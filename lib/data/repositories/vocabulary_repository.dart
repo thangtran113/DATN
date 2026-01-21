@@ -10,14 +10,14 @@ class VocabularyRepository {
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
   /// Lưu một từ vào danh sách từ vựng
-  Future<String> saveWord(SavedWord word) async {
+  /// Returns: {'id': string, 'isNew': bool}
+  Future<Map<String, dynamic>> saveWord(SavedWord word) async {
     try {
       // Kiểm tra xem từ đã tồn tại chưa
       final existing = await getWordByText(word.userId, word.word);
       if (existing != null) {
-        // Nếu đã tồn tại, update thông tin
-        await updateWord(existing.id, word);
-        return existing.id;
+        // Từ đã tồn tại, không lưu lại
+        return {'id': existing.id, 'isNew': false};
       }
 
       // Thêm từ mới
@@ -25,7 +25,7 @@ class VocabularyRepository {
           .collection(AppConstants.vocabularyCollection)
           .add(word.toMap());
 
-      return docRef.id;
+      return {'id': docRef.id, 'isNew': true};
     } catch (e) {
       throw Exception('Lỗi khi lưu từ: $e');
     }

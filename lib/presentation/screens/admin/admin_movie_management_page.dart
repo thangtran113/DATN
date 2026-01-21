@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/admin_movie_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_provider.dart' as app_auth;
 import '../../../data/repositories/movie_import_repository.dart';
+import '../../../domain/entities/movie.dart';
 
 class AdminMovieManagementPage extends StatefulWidget {
   const AdminMovieManagementPage({Key? key}) : super(key: key);
@@ -32,12 +34,11 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.watch<AuthProvider>();
-    final user = authProvider.user;
+    final authProvider = context.watch<app_auth.AuthProvider>();
 
-    // TODO: Re-enable admin check after testing
+    // TODO: Kích hoạt lại kiểm tra admin sau khi thử nghiệm
     if (false) {
-      // Temporarily disabled: user == null || !user.isAdmin
+      // Tạm thời vô hiệu hóa: authProvider.user == null || !authProvider.user!.isAdmin
       return Scaffold(
         body: Center(
           child: Column(
@@ -66,15 +67,8 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
             onSelected: (value) {
               if (value == 'import_tmdb') {
                 _showImportTMDBDialog();
-              } else if (value == 'import_popular') {
-                _showImportPopularDialog();
               } else if (value == 'add_manual') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Chức năng thêm thủ công đang phát triển'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
+                _showAddManualDialog();
               }
             },
             itemBuilder: (context) => [
@@ -85,16 +79,6 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
                     Icon(Icons.download),
                     SizedBox(width: 8),
                     Text('Import từ TMDB'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'import_popular',
-                child: Row(
-                  children: [
-                    Icon(Icons.trending_up),
-                    SizedBox(width: 8),
-                    Text('Import Popular Movies'),
                   ],
                 ),
               ),
@@ -197,7 +181,7 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
     );
   }
 
-  Widget _buildMovieListItem(dynamic movie, AdminMovieProvider provider) {
+  Widget _buildMovieListItem(Movie movie, AdminMovieProvider provider) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
@@ -240,23 +224,24 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
         ),
         trailing: PopupMenuButton(
           itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'upload_video',
-              child: Row(
-                children: [
-                  Icon(Icons.video_library),
-                  SizedBox(width: 8),
-                  Text('Upload Video'),
-                ],
-              ),
-            ),
+            // ⛔ COMMENTED OUT - Using local assets instead of Firebase upload
+            // const PopupMenuItem(
+            //   value: 'upload_video',
+            //   child: Row(
+            //     children: [
+            //       Icon(Icons.video_library),
+            //       SizedBox(width: 8),
+            //       Text('Tải Lên Video'),
+            //     ],
+            //   ),
+            // ),
             const PopupMenuItem(
               value: 'upload_subtitle',
               child: Row(
                 children: [
                   Icon(Icons.closed_caption),
                   SizedBox(width: 8),
-                  Text('Upload Subtitle'),
+                  Text('Tải Lên Phụ Đề'),
                 ],
               ),
             ),
@@ -282,16 +267,14 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
             ),
           ],
           onSelected: (value) {
-            if (value == 'upload_video') {
-              _showUploadVideoDialog(movie);
-            } else if (value == 'upload_subtitle') {
+            // ⛔ COMMENTED OUT - Using local assets instead of Firebase upload
+            // if (value == 'upload_video') {
+            //   _showUploadVideoDialog(movie);
+            // } else
+            if (value == 'upload_subtitle') {
               _showUploadSubtitleDialog(movie);
             } else if (value == 'edit') {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Chức năng chỉnh sửa đang phát triển'),
-                ),
-              );
+              _showEditMovieDialog(movie);
             } else if (value == 'delete') {
               _confirmDeleteMovie(movie, provider);
             }
@@ -302,7 +285,7 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
   }
 
   Future<void> _confirmDeleteMovie(
-    dynamic movie,
+    Movie movie,
     AdminMovieProvider provider,
   ) async {
     final confirm = await showDialog<bool>(
@@ -326,21 +309,63 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
     );
 
     if (confirm == true) {
-      final success = await provider.deleteMovie(movie.id);
+      // Gỡ lỗi: Kiểm tra ID phim
+      print('Đối tượng phim: $movie');
+      print('ID phim: ${movie.id}');
+      print('Tiêu đề phim: ${movie.title}');
 
-      if (mounted) {
-        if (success) {
+      if (movie.id == null || movie.id.toString().isEmpty) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Đã xóa phim thành công'),
-              duration: Duration(seconds: 1),
+              content: Text('❌ Lỗi: ID phim không hợp lệ'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
             ),
           );
-        } else {
+        }
+        return;
+      }
+
+      // Hiển thị đang tải
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      try {
+        final success = await provider.deleteMovie(movie.id);
+
+        if (mounted) {
+          Navigator.pop(context); // Close loading
+
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Đã xóa phim thành công'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ ${provider.error ?? "Không thể xóa phim"}'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Close loading
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Lỗi: ${provider.error}'),
-              duration: const Duration(seconds: 1),
+              content: Text('❌ Lỗi: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -381,10 +406,7 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
                   ),
                 ),
                 items: const [
-                  DropdownMenuItem(
-                    value: 'vi',
-                    child: Text('🇻🇳 Tiếng Việt (nếu có)'),
-                  ),
+                  DropdownMenuItem(value: 'vi', child: Text('🇻🇳 Tiếng Việt')),
                   DropdownMenuItem(
                     value: 'en-US',
                     child: Text('🇺🇸 Tiếng Anh'),
@@ -441,57 +463,626 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
     );
   }
 
-  void _showImportPopularDialog() {
-    final countController = TextEditingController(text: '20');
+  void _showAddManualDialog() {
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final posterUrlController = TextEditingController();
+    final backdropUrlController = TextEditingController();
+    final videoUrlController = TextEditingController();
+    final durationController = TextEditingController();
+    final yearController = TextEditingController(
+      text: DateTime.now().year.toString(),
+    );
+    final castController = TextEditingController();
+    final directorController = TextEditingController();
+    final countryController = TextEditingController();
+    final ratingController = TextEditingController(text: '5.0');
+
+    bool isUploadingPoster = false;
+    bool isUploadingBackdrop = false;
+
+    final List<String> selectedGenres = [];
+    final List<String> availableGenres = [
+      'Action',
+      'Adventure',
+      'Animation',
+      'Comedy',
+      'Crime',
+      'Documentary',
+      'Drama',
+      'Family',
+      'Fantasy',
+      'History',
+      'Horror',
+      'Music',
+      'Mystery',
+      'Romance',
+      'Science Fiction',
+      'Thriller',
+      'War',
+      'Western',
+    ];
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Import Popular Movies'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: countController,
-              decoration: const InputDecoration(
-                labelText: 'Số lượng phim',
-                hintText: 'Từ 1 đến 100',
-                border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Thêm Phim Thủ Công'),
+          content: SizedBox(
+            width: 600,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tên phim *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Vui lòng nhập tên phim'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Mô tả *',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Vui lòng nhập mô tả'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: posterUrlController,
+                            decoration: const InputDecoration(
+                              labelText: 'Poster URL *',
+                              hintText: 'https://... hoặc chọn file',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty)
+                                return 'Vui lòng nhập URL hoặc chọn ảnh';
+                              if (!value.startsWith('http'))
+                                return 'URL không hợp lệ';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ElevatedButton.icon(
+                            onPressed: isUploadingPoster
+                                ? null
+                                : () async {
+                                    final result = await FilePicker.platform
+                                        .pickFiles(
+                                          type: FileType.image,
+                                          allowMultiple: false,
+                                        );
+
+                                    if (result != null &&
+                                        result.files.first.bytes != null) {
+                                      setState(() => isUploadingPoster = true);
+
+                                      try {
+                                        final file = result.files.first;
+                                        final ref = FirebaseStorage.instance
+                                            .ref()
+                                            .child(
+                                              'posters/${DateTime.now().millisecondsSinceEpoch}_${file.name}',
+                                            );
+
+                                        await ref.putData(
+                                          file.bytes!,
+                                          SettableMetadata(
+                                            contentType:
+                                                'image/${file.extension}',
+                                          ),
+                                        );
+
+                                        final url = await ref.getDownloadURL();
+                                        posterUrlController.text = url;
+
+                                        setState(
+                                          () => isUploadingPoster = false,
+                                        );
+
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              '✅ Upload poster thành công',
+                                            ),
+                                            duration: Duration(seconds: 1),
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        setState(
+                                          () => isUploadingPoster = false,
+                                        );
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('❌ Lỗi upload: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                            icon: isUploadingPoster
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.upload_file, size: 18),
+                            label: Text(
+                              isUploadingPoster ? 'Uploading...' : 'Chọn ảnh',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: backdropUrlController,
+                            decoration: const InputDecoration(
+                              labelText: 'Backdrop URL (tùy chọn)',
+                              hintText: 'https://... hoặc chọn file',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ElevatedButton.icon(
+                            onPressed: isUploadingBackdrop
+                                ? null
+                                : () async {
+                                    final result = await FilePicker.platform
+                                        .pickFiles(
+                                          type: FileType.image,
+                                          allowMultiple: false,
+                                        );
+
+                                    if (result != null &&
+                                        result.files.first.bytes != null) {
+                                      setState(
+                                        () => isUploadingBackdrop = true,
+                                      );
+
+                                      try {
+                                        final file = result.files.first;
+                                        final ref = FirebaseStorage.instance
+                                            .ref()
+                                            .child(
+                                              'backdrops/${DateTime.now().millisecondsSinceEpoch}_${file.name}',
+                                            );
+
+                                        await ref.putData(
+                                          file.bytes!,
+                                          SettableMetadata(
+                                            contentType:
+                                                'image/${file.extension}',
+                                          ),
+                                        );
+
+                                        final url = await ref.getDownloadURL();
+                                        backdropUrlController.text = url;
+
+                                        setState(
+                                          () => isUploadingBackdrop = false,
+                                        );
+
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              '✅ Upload backdrop thành công',
+                                            ),
+                                            duration: Duration(seconds: 1),
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        setState(
+                                          () => isUploadingBackdrop = false,
+                                        );
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('❌ Lỗi upload: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                            icon: isUploadingBackdrop
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.upload_file, size: 18),
+                            label: Text(
+                              isUploadingBackdrop ? 'Uploading...' : 'Chọn ảnh',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: videoUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Video URL 🎬',
+                        hintText: 'assets/videos/movie.mp4 hoặc https://...',
+                        helperText:
+                            '✅ Local: assets/videos/movie.mp4 (hoặc assets\\videos\\movie.mp4)\n'
+                            '✅ Firebase: https://firebasestorage...\n'
+                            '✅ Direct: https://example.com/video.mp4\n'
+                            '💡 Backslash (\\) sẽ tự động chuyển thành /',
+                        helperMaxLines: 5,
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                      onChanged: (value) {
+                        // Auto-normalize backslashes to forward slashes
+                        if (value.contains('\\')) {
+                          final normalized = value.replaceAll('\\', '/');
+                          videoUrlController.value = videoUrlController.value
+                              .copyWith(
+                                text: normalized,
+                                selection: TextSelection.collapsed(
+                                  offset: normalized.length,
+                                ),
+                              );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: yearController,
+                            decoration: const InputDecoration(
+                              labelText: 'Năm *',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final year = int.tryParse(value ?? '');
+                              return (year == null ||
+                                      year < 1900 ||
+                                      year > 2100)
+                                  ? 'Năm không hợp lệ'
+                                  : null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: durationController,
+                            decoration: const InputDecoration(
+                              labelText: 'Thời lượng (phút) *',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final duration = int.tryParse(value ?? '');
+                              return (duration == null || duration <= 0)
+                                  ? 'Không hợp lệ'
+                                  : null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Thể loại *', style: TextStyle(fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: availableGenres.map((genre) {
+                        final isSelected = selectedGenres.contains(genre);
+                        return FilterChip(
+                          label: Text(
+                            genre,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                selectedGenres.add(genre);
+                              } else {
+                                selectedGenres.remove(genre);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    if (selectedGenres.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Vui lòng chọn ít nhất 1 thể loại',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: directorController,
+                      decoration: const InputDecoration(
+                        labelText: 'Đạo diễn *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Vui lòng nhập đạo diễn'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: castController,
+                      decoration: const InputDecoration(
+                        labelText: 'Diễn viên *',
+                        hintText: 'Ngăn cách bằng dấu phẩy',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Vui lòng nhập diễn viên'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: countryController,
+                            decoration: const InputDecoration(
+                              labelText: 'Quốc gia',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: ratingController,
+                            decoration: const InputDecoration(
+                              labelText: 'Rating (0-10)',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final rating = double.tryParse(value ?? '');
+                              return (rating == null ||
+                                      rating < 0 ||
+                                      rating > 10)
+                                  ? 'Từ 0-10'
+                                  : null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Lưu ý: Video và subtitle sẽ upload sau khi tạo phim.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
-              keyboardType: TextInputType.number,
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Import sẽ mất vài phút. App sẽ tự động tải metadata, trailer và subtitle.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Gỡ lỗi xác thực
+                print('Biểu mẫu hợp lệ: ${formKey.currentState!.validate()}');
+                print('Thể loại đã chọn: ${selectedGenres.isNotEmpty}');
+                print('URL Áp phích: ${posterUrlController.text}');
+                print('Thể loại đã chọn: $selectedGenres');
+
+                if (formKey.currentState!.validate() &&
+                    selectedGenres.isNotEmpty) {
+                  Navigator.pop(context);
+                  await _addManualMovie(
+                    title: titleController.text.trim(),
+                    description: descriptionController.text.trim(),
+                    posterUrl: posterUrlController.text.trim(),
+                    backdropUrl: backdropUrlController.text.trim().isEmpty
+                        ? null
+                        : backdropUrlController.text.trim(),
+                    videoUrl: videoUrlController.text.trim().isEmpty
+                        ? null
+                        : videoUrlController.text.trim(),
+                    year: int.parse(yearController.text),
+                    duration: int.parse(durationController.text),
+                    genres: selectedGenres,
+                    director: directorController.text.trim(),
+                    cast: castController.text
+                        .split(',')
+                        .map((e) => e.trim())
+                        .toList(),
+                    country: countryController.text.trim().isEmpty
+                        ? null
+                        : countryController.text.trim(),
+                    rating: double.parse(ratingController.text),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        selectedGenres.isEmpty
+                            ? 'Vui lòng chọn ít nhất 1 thể loại'
+                            : 'Vui lòng điền đầy đủ thông tin bắt buộc (*)',
+                      ),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Thêm Phim'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final count = int.tryParse(countController.text) ?? 20;
-              if (count > 0 && count <= 100) {
-                Navigator.pop(context);
-                _importPopularMovies(count);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Số lượng phải từ 1-100'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              }
-            },
-            child: const Text('Import'),
-          ),
-        ],
       ),
     );
+  }
+
+  Future<void> _addManualMovie({
+    required String title,
+    required String description,
+    required String posterUrl,
+    String? backdropUrl,
+    String? videoUrl,
+    required int year,
+    required int duration,
+    required List<String> genres,
+    required String director,
+    required List<String> cast,
+    String? country,
+    required double rating,
+  }) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text('Đang lưu phim...')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Kiểm tra xác thực
+      final currentUser = FirebaseAuth.instance.currentUser;
+      print('=== Bắt đầu tạo phim thủ công ===');
+      print('Người dùng hiện tại: ${currentUser?.uid}');
+      print('Email người dùng: ${currentUser?.email}');
+      print('Mã xác thực: ${await currentUser?.getIdToken()}');
+      print('Tiêu đề: $title');
+      print('URL Áp phích: $posterUrl');
+      print('Thể loại: $genres');
+
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final docRef = FirebaseFirestore.instance.collection('movies').doc();
+      print('ID tài liệu đã tạo: ${docRef.id}');
+
+      final movie = {
+        'id': docRef.id,
+        'title': title,
+        'description': description,
+        'posterUrl': posterUrl,
+        'backdropUrl': backdropUrl,
+        'trailerUrl': null,
+        'videoUrl': videoUrl,
+        'duration': duration,
+        'genres': genres,
+        'languages': <String>[],
+        'rating': rating,
+        'year': year,
+        'cast': cast,
+        'director': director,
+        'country': country,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'subtitles': null,
+      };
+
+      print('Dữ liệu phim đã chuẩn bị, đang lưu vào Firestore...');
+      await docRef.set(movie);
+      print('Phim đã lưu thành công!');
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Đã thêm phim: $title'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        _loadMovies();
+      }
+    } catch (e, stackTrace) {
+      print('=== LỖI khi tạo phim ===');
+      print('Lỗi: $e');
+      print('Theo dõi ngăn xếp: $stackTrace');
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Lỗi thêm phim: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _importFromTMDB(int tmdbId) async {
@@ -510,11 +1101,11 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
     );
 
     try {
-      print('Starting import for TMDB ID: $tmdbId');
+      print('Bắt đầu nhập cho TMDB ID: $tmdbId');
       final repository = MovieImportRepository();
       final movie = await repository.importMovieFromTMDB(tmdbId);
 
-      print('Import completed: ${movie.title}');
+      print('Nhập hoàn tất: ${movie.title}');
 
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
@@ -528,8 +1119,8 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
         _loadMovies(); // Reload list
       }
     } catch (e, stackTrace) {
-      print('Import error: $e');
-      print('Stack trace: $stackTrace');
+      print('Lỗi nhập: $e');
+      print('Theo dõi ngăn xếp: $stackTrace');
 
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
@@ -544,87 +1135,36 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
     }
   }
 
-  Future<void> _importPopularMovies(int count) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text('Đang import $count phim popular...'),
-            const SizedBox(height: 8),
-            const Text(
-              'Quá trình này có thể mất vài phút',
-              style: TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      // Import popular movies (this will be implemented with MovieImportRepository)
-      await Future.delayed(const Duration(seconds: 3)); // Simulate API call
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Import thành công $count phim! Lưu ý: Cấu hình API keys trước khi sử dụng.',
-            ),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-        _loadMovies(); // Reload list
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi import: $e'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    }
-  }
-
-  void _showUploadVideoDialog(dynamic movie) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Upload Video cho "${movie.title}"'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Chọn file video (MP4, MKV, AVI)\n'
-              'Khuyên dùng: clip 5-10 phút để demo\n'
-              'Giới hạn: 100MB',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _pickAndUploadVideo(movie),
-              icon: const Icon(Icons.file_upload),
-              label: const Text('Chọn Video File'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
-    );
-  }
+  // ⛔ COMMENTED OUT - Using local assets instead of Firebase upload
+  // void _showUploadVideoDialog(dynamic movie) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       title: const Text('Tải Lên Video'),
+  //       content: const Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         children: [
+  //           Text(
+  //             'Chọn file video để tải lên Firebase Storage.\n\n'
+  //             'Giới hạn: 100MB (cắt video ngắn hơn nếu quá lớn)',
+  //             style: TextStyle(fontSize: 13),
+  //           ),
+  //         ],
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(context),
+  //           child: const Text('Hủy'),
+  //         ),
+  //         ElevatedButton.icon(
+  //           onPressed: () => _pickAndUploadVideo(movie),
+  //           icon: const Icon(Icons.upload_file),
+  //           label: const Text('Chọn Video'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   void _showUploadSubtitleDialog(dynamic movie) {
     String selectedLanguage = 'en';
@@ -633,7 +1173,7 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text('Upload Subtitle cho "${movie.title}"'),
+          title: Text('Tải Phụ Đề Cho "${movie.title}"'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,11 +1191,8 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'en', child: Text('English')),
+                  DropdownMenuItem(value: 'en', child: Text('Tiếng Anh')),
                   DropdownMenuItem(value: 'vi', child: Text('Tiếng Việt')),
-                  DropdownMenuItem(value: 'ja', child: Text('日本語')),
-                  DropdownMenuItem(value: 'ko', child: Text('한국어')),
-                  DropdownMenuItem(value: 'zh', child: Text('中文')),
                 ],
                 onChanged: (value) {
                   setState(() {
@@ -683,104 +1220,105 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
     );
   }
 
-  Future<void> _pickAndUploadVideo(dynamic movie) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['mp4', 'mkv', 'avi', 'mov'],
-        withData: true,
-      );
-
-      if (result == null || result.files.isEmpty) return;
-
-      final file = result.files.first;
-      if (file.bytes == null) {
-        throw Exception('Không thể đọc file');
-      }
-
-      // Check file size (100MB limit)
-      const maxSize = 100 * 1024 * 1024; // 100MB
-      if (file.size > maxSize) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'File quá lớn! Giới hạn 100MB. Hãy cắt video ngắn hơn.',
-              ),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
-        return;
-      }
-
-      if (mounted) Navigator.pop(context); // Close dialog
-
-      // Show upload progress
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text('Đang upload ${file.name}...'),
-              const SizedBox(height: 8),
-              const Text(
-                'Có thể mất vài phút',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      );
-
-      // Upload to Firebase Storage
-      final storageRef = FirebaseStorage.instance.ref().child(
-        'videos/${movie.id}/${file.name}',
-      );
-
-      final uploadTask = storageRef.putData(
-        file.bytes!,
-        SettableMetadata(contentType: 'video/${file.extension}'),
-      );
-
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      // Update Firestore
-      await FirebaseFirestore.instance
-          .collection('movies')
-          .doc(movie.id)
-          .update({'videoUrl': downloadUrl});
-
-      if (mounted) {
-        Navigator.pop(context); // Close progress dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Upload video thành công: ${file.name}'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 1),
-          ),
-        );
-        _loadMovies();
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Close progress dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Lỗi upload video: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    }
-  }
+  // ⛔ COMMENTED OUT - Using local assets instead of Firebase upload
+  // Future<void> _pickAndUploadVideo(dynamic movie) async {
+  //   try {
+  //     final result = await FilePicker.platform.pickFiles(
+  //       type: FileType.custom,
+  //       allowedExtensions: ['mp4', 'mkv', 'avi', 'mov'],
+  //       withData: true,
+  //     );
+  //
+  //     if (result == null || result.files.isEmpty) return;
+  //
+  //     final file = result.files.first;
+  //     if (file.bytes == null) {
+  //       throw Exception('Không thể đọc file');
+  //     }
+  //
+  //     // Check file size (100MB limit)
+  //     const maxSize = 100 * 1024 * 1024; // 100MB
+  //     if (file.size > maxSize) {
+  //       if (mounted) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           const SnackBar(
+  //             content: Text(
+  //               'File quá lớn! Giới hạn 100MB. Hãy cắt video ngắn hơn.',
+  //             ),
+  //             backgroundColor: Colors.red,
+  //             duration: Duration(seconds: 1),
+  //           ),
+  //         );
+  //       }
+  //       return;
+  //     }
+  //
+  //     if (mounted) Navigator.pop(context); // Close dialog
+  //
+  //     // Show upload progress
+  //     showDialog(
+  //       context: context,
+  //       barrierDismissible: false,
+  //       builder: (context) => AlertDialog(
+  //         content: Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             const CircularProgressIndicator(),
+  //             const SizedBox(height: 16),
+  //             Text('Đang upload ${file.name}...'),
+  //             const SizedBox(height: 8),
+  //             const Text(
+  //               'Có thể mất vài phút',
+  //               style: TextStyle(fontSize: 12, color: Colors.grey),
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     );
+  //
+  //     // Upload to Firebase Storage
+  //     final storageRef = FirebaseStorage.instance.ref().child(
+  //       'videos/${movie.id}/${file.name}',
+  //     );
+  //
+  //     final uploadTask = storageRef.putData(
+  //       file.bytes!,
+  //       SettableMetadata(contentType: 'video/${file.extension}'),
+  //     );
+  //
+  //     final snapshot = await uploadTask;
+  //     final downloadUrl = await snapshot.ref.getDownloadURL();
+  //
+  //     // Update Firestore
+  //     await FirebaseFirestore.instance
+  //         .collection('movies')
+  //         .doc(movie.id)
+  //         .update({'videoUrl': downloadUrl});
+  //
+  //     if (mounted) {
+  //       Navigator.pop(context); // Close progress dialog
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text('✅ Tải lên video thành công: ${file.name}'),
+  //           backgroundColor: Colors.green,
+  //           duration: const Duration(seconds: 1),
+  //         ),
+  //       );
+  //       _loadMovies();
+  //     }
+  //   } catch (e) {
+  //     if (mounted) {
+  //       Navigator.pop(context); // Close progress dialog
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text('❌ Lỗi tải lên video: $e'),
+  //           backgroundColor: Colors.red,
+  //           duration: const Duration(seconds: 1),
+  //         ),
+  //       );
+  //     }
+  //   }
+  // }
 
   Future<void> _pickAndUploadSubtitle(dynamic movie, String language) async {
     try {
@@ -799,7 +1337,7 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
 
       if (mounted) Navigator.pop(context); // Close dialog
 
-      // Show upload progress
+      // Hiển thị tiến trình tải lên
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -814,7 +1352,7 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
         ),
       );
 
-      // Upload to Firebase Storage
+      // Tải lên Firebase Storage
       final storageRef = FirebaseStorage.instance.ref().child(
         'subtitles/${movie.id}/$language.srt',
       );
@@ -827,7 +1365,7 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      // Update Firestore - merge subtitles map
+      // Cập nhật Firestore - gộp bản đồ phụ đề
       await FirebaseFirestore.instance
           .collection('movies')
           .doc(movie.id)
@@ -840,7 +1378,7 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
         Navigator.pop(context); // Close progress dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Upload subtitle ($language) thành công!'),
+            content: Text('✅ Tải lên phụ đề ($language) thành công!'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 1),
           ),
@@ -852,13 +1390,619 @@ class _AdminMovieManagementPageState extends State<AdminMovieManagementPage> {
         Navigator.pop(context); // Close progress dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Lỗi upload subtitle: $e'),
+            content: Text('❌ Lỗi tải lên phụ đề: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 1),
           ),
         );
       }
     }
+  }
+
+  // === EDIT MOVIE ===
+
+  void _showEditMovieDialog(Movie movie) {
+    // LƯU ROOT CONTEXT trước khi hiển thị dialog
+    final rootContext = context;
+
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController(text: movie.title);
+    final descriptionController = TextEditingController(
+      text: movie.description,
+    );
+    final posterUrlController = TextEditingController(
+      text: movie.posterUrl ?? '',
+    );
+    final backdropUrlController = TextEditingController(
+      text: movie.backdropUrl ?? '',
+    );
+    final videoUrlController = TextEditingController(
+      text: movie.videoUrl ?? '',
+    );
+    final yearController = TextEditingController(text: movie.year.toString());
+    final durationController = TextEditingController(
+      text: movie.duration.toString(),
+    );
+    final directorController = TextEditingController(
+      text: movie.director ?? '',
+    );
+    final castController = TextEditingController(
+      text: movie.cast?.join(', ') ?? '',
+    );
+    final countryController = TextEditingController(text: movie.country ?? '');
+    final ratingController = TextEditingController(
+      text: movie.rating.toString(),
+    );
+
+    bool isUploadingPoster = false;
+    bool isUploadingBackdrop = false;
+
+    Set<String> selectedGenres = Set<String>.from(movie.genres ?? []);
+
+    final availableGenres = [
+      'Action',
+      'Adventure',
+      'Animation',
+      'Comedy',
+      'Crime',
+      'Documentary',
+      'Drama',
+      'Family',
+      'Fantasy',
+      'History',
+      'Horror',
+      'Music',
+      'Mystery',
+      'Romance',
+      'Science Fiction',
+      'Thriller',
+      'War',
+      'Western',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Chỉnh Sửa Phim'),
+          content: SizedBox(
+            width: 600,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tên phim *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Vui lòng nhập tên phim'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Mô tả *',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Vui lòng nhập mô tả'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: posterUrlController,
+                            decoration: const InputDecoration(
+                              labelText: 'Poster URL *',
+                              hintText: 'https://... hoặc chọn file',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty)
+                                return 'Vui lòng nhập URL hoặc chọn ảnh';
+                              if (!value.startsWith('http'))
+                                return 'URL không hợp lệ';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ElevatedButton.icon(
+                            onPressed: isUploadingPoster
+                                ? null
+                                : () async {
+                                    final result = await FilePicker.platform
+                                        .pickFiles(
+                                          type: FileType.image,
+                                          allowMultiple: false,
+                                        );
+
+                                    if (result != null &&
+                                        result.files.first.bytes != null) {
+                                      setState(() => isUploadingPoster = true);
+
+                                      try {
+                                        final file = result.files.first;
+                                        final ref = FirebaseStorage.instance
+                                            .ref()
+                                            .child(
+                                              'posters/${DateTime.now().millisecondsSinceEpoch}_${file.name}',
+                                            );
+
+                                        await ref.putData(file.bytes!);
+                                        final url = await ref.getDownloadURL();
+
+                                        setState(() {
+                                          posterUrlController.text = url;
+                                          isUploadingPoster = false;
+                                        });
+                                      } catch (e) {
+                                        setState(
+                                          () => isUploadingPoster = false,
+                                        );
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Lỗi upload: $e'),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                            icon: isUploadingPoster
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.upload_file, size: 16),
+                            label: const Text('Chọn'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: backdropUrlController,
+                            decoration: const InputDecoration(
+                              labelText: 'Backdrop URL',
+                              hintText: 'https://... hoặc chọn file',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value != null &&
+                                  value.isNotEmpty &&
+                                  !value.startsWith('http')) {
+                                return 'URL không hợp lệ';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ElevatedButton.icon(
+                            onPressed: isUploadingBackdrop
+                                ? null
+                                : () async {
+                                    final result = await FilePicker.platform
+                                        .pickFiles(
+                                          type: FileType.image,
+                                          allowMultiple: false,
+                                        );
+
+                                    if (result != null &&
+                                        result.files.first.bytes != null) {
+                                      setState(
+                                        () => isUploadingBackdrop = true,
+                                      );
+
+                                      try {
+                                        final file = result.files.first;
+                                        final ref = FirebaseStorage.instance
+                                            .ref()
+                                            .child(
+                                              'backdrops/${DateTime.now().millisecondsSinceEpoch}_${file.name}',
+                                            );
+
+                                        await ref.putData(file.bytes!);
+                                        final url = await ref.getDownloadURL();
+
+                                        setState(() {
+                                          backdropUrlController.text = url;
+                                          isUploadingBackdrop = false;
+                                        });
+                                      } catch (e) {
+                                        setState(
+                                          () => isUploadingBackdrop = false,
+                                        );
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Lỗi upload: $e'),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                            icon: isUploadingBackdrop
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.upload_file, size: 16),
+                            label: const Text('Chọn'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: videoUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Video URL',
+                        hintText: 'assets/videos/movie.mp4 hoặc https://...',
+                        helperText:
+                            'Hỗ trợ: assets/, gs://, http://, https://\nBackslash (\\) tự động chuyển thành /',
+                        helperMaxLines: 2,
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                      onChanged: (value) {
+                        // Auto-normalize backslashes to forward slashes
+                        if (value.contains('\\')) {
+                          final normalized = value.replaceAll('\\', '/');
+                          videoUrlController.value = videoUrlController.value
+                              .copyWith(
+                                text: normalized,
+                                selection: TextSelection.collapsed(
+                                  offset: normalized.length,
+                                ),
+                              );
+                        }
+                      },
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty) {
+                          // Chuẩn hóa để xác thực
+                          final normalized = value.replaceAll('\\', '/');
+                          if (!normalized.startsWith('gs://') &&
+                              !normalized.startsWith('http') &&
+                              !normalized.startsWith('assets/')) {
+                            return 'URL phải bắt đầu với: assets/, gs://, http://, hoặc https://';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: yearController,
+                            decoration: const InputDecoration(
+                              labelText: 'Năm phát hành *',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final year = int.tryParse(value ?? '');
+                              return (year == null ||
+                                      year < 1900 ||
+                                      year > 2100)
+                                  ? 'Năm không hợp lệ'
+                                  : null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: durationController,
+                            decoration: const InputDecoration(
+                              labelText: 'Thời lượng (phút) *',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final duration = int.tryParse(value ?? '');
+                              return (duration == null || duration <= 0)
+                                  ? 'Thời lượng không hợp lệ'
+                                  : null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Thể loại *',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: availableGenres.map((genre) {
+                        final isSelected = selectedGenres.contains(genre);
+                        return FilterChip(
+                          label: Text(genre),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                selectedGenres.add(genre);
+                              } else {
+                                selectedGenres.remove(genre);
+                              }
+                            });
+                          },
+                          selectedColor: Colors.blue.withOpacity(0.3),
+                        );
+                      }).toList(),
+                    ),
+                    if (selectedGenres.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Vui lòng chọn ít nhất 1 thể loại',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: directorController,
+                      decoration: const InputDecoration(
+                        labelText: 'Đạo diễn *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Vui lòng nhập đạo diễn'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: castController,
+                      decoration: const InputDecoration(
+                        labelText: 'Diễn viên *',
+                        hintText: 'Ngăn cách bằng dấu phẩy',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Vui lòng nhập diễn viên'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: countryController,
+                            decoration: const InputDecoration(
+                              labelText: 'Quốc gia',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: ratingController,
+                            decoration: const InputDecoration(
+                              labelText: 'Rating (0-10)',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final rating = double.tryParse(value ?? '');
+                              return (rating == null ||
+                                      rating < 0 ||
+                                      rating > 10)
+                                  ? 'Từ 0-10'
+                                  : null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate() &&
+                    selectedGenres.isNotEmpty) {
+                  // LẤY PROVIDER TRƯỚC KHI ĐÓNG DIALOG
+                  final provider = Provider.of<AdminMovieProvider>(
+                    context,
+                    listen: false,
+                  );
+
+                  // Đóng edit dialog
+                  Navigator.pop(context);
+
+                  // Hiển thị dialog tiến trình
+                  BuildContext? progressDialogContext;
+                  showDialog(
+                    context: rootContext,
+                    barrierDismissible: false,
+                    builder: (dialogContext) {
+                      progressDialogContext = dialogContext;
+                      return const AlertDialog(
+                        content: Row(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 16),
+                            Expanded(child: Text('Đang cập nhật phim...')),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+
+                  try {
+                    // Gỡ lỗi ID phim
+                    print('Chỉnh sửa - ID phim: ${movie.id}');
+                    print('Chỉnh sửa - Tiêu đề phim: ${movie.title}');
+
+                    if (movie.id == null || movie.id.isEmpty) {
+                      throw Exception('ID phim không hợp lệ');
+                    }
+
+                    print('Đang phân tích các giá trị đầu vào...');
+                    final duration = int.parse(durationController.text);
+                    final rating = double.parse(ratingController.text);
+                    final year = int.parse(yearController.text);
+                    print(
+                      'Parsed: duration=$duration, rating=$rating, year=$year',
+                    );
+
+                    // Buộc làm mới mã thông báo
+                    print('Đang lấy người dùng hiện tại...');
+                    final currentUser = FirebaseAuth.instance.currentUser;
+                    print('Người dùng hiện tại: ${currentUser?.uid}');
+                    if (currentUser != null) {
+                      print('Refreshing token...');
+                      await currentUser.getIdToken(true);
+                      print('Token refreshed');
+                    }
+
+                    print('Đang tạo đối tượng phim đã cập nhật...');
+                    final updatedMovie = Movie(
+                      id: movie.id,
+                      title: titleController.text.trim(),
+                      description: descriptionController.text.trim(),
+                      posterUrl: posterUrlController.text.trim(),
+                      backdropUrl: backdropUrlController.text.trim().isEmpty
+                          ? null
+                          : backdropUrlController.text.trim(),
+                      trailerUrl: movie.trailerUrl,
+                      videoUrl: videoUrlController.text.trim().isEmpty
+                          ? null
+                          : videoUrlController.text.trim(),
+                      duration: duration,
+                      genres: selectedGenres.toList(),
+                      languages: movie.languages,
+                      rating: rating,
+                      year: year,
+                      cast: castController.text
+                          .split(',')
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList(),
+                      director: directorController.text.trim(),
+                      country: countryController.text.trim().isEmpty
+                          ? null
+                          : countryController.text.trim(),
+                      createdAt: movie.createdAt,
+                      updatedAt: DateTime.now(),
+                      subtitles: movie.subtitles,
+                    );
+                    print('Đối tượng phim đã được tạo thành công');
+
+                    final success = await provider.updateMovie(updatedMovie);
+
+                    // Đóng progress dialog
+                    if (progressDialogContext != null &&
+                        progressDialogContext!.mounted) {
+                      Navigator.of(progressDialogContext!).pop();
+                    }
+
+                    // Hiển thị kết quả
+                    if (rootContext.mounted) {
+                      ScaffoldMessenger.of(rootContext).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            success
+                                ? '✅ Cập nhật phim thành công!'
+                                : '❌ Không thể cập nhật phim',
+                          ),
+                          backgroundColor: success ? Colors.green : Colors.red,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    // Đóng progress dialog
+                    if (progressDialogContext != null &&
+                        progressDialogContext!.mounted) {
+                      Navigator.of(progressDialogContext!).pop();
+                    }
+
+                    // Hiển thị lỗi
+                    if (rootContext.mounted) {
+                      ScaffoldMessenger.of(rootContext).showSnackBar(
+                        SnackBar(
+                          content: Text('❌ Lỗi: $e'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        selectedGenres.isEmpty
+                            ? 'Vui lòng chọn ít nhất 1 thể loại'
+                            : 'Vui lòng điền đầy đủ thông tin bắt buộc (*)',
+                      ),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Cập Nhật'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override

@@ -48,10 +48,10 @@ class CommentRepository {
         });
       }
 
-      print('✅ Comment added: ${docRef.id}');
+      print('✅ Bình luận đã thêm: ${docRef.id}');
       return docRef.id;
     } catch (e) {
-      print('❌ Error adding comment: $e');
+      print('❌ Lỗi khi thêm bình luận: $e');
       rethrow;
     }
   }
@@ -100,7 +100,7 @@ class CommentRepository {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting comment: $e');
+      print('❌ Lỗi khi lấy bình luận: $e');
       return null;
     }
   }
@@ -113,9 +113,9 @@ class CommentRepository {
         'updatedAt': FieldValue.serverTimestamp(),
         'isEdited': true,
       });
-      print('✅ Comment updated: $commentId');
+      print('✅ Bình luận đã cập nhật: $commentId');
     } catch (e) {
-      print('❌ Error updating comment: $e');
+      print('❌ Lỗi khi cập nhật bình luận: $e');
       rethrow;
     }
   }
@@ -153,7 +153,7 @@ class CommentRepository {
         '✅ Comment deleted: $commentId (and ${repliesSnapshot.docs.length} replies)',
       );
     } catch (e) {
-      print('❌ Error deleting comment: $e');
+      print('❌ Lỗi khi xóa bình luận: $e');
       rethrow;
     }
   }
@@ -172,16 +172,16 @@ class CommentRepository {
         await _commentsCollection.doc(commentId).update({
           'likedBy': FieldValue.arrayRemove([userId]),
         });
-        print('👎 Like removed from comment: $commentId');
+        print('👎 Thích đã xóa khỏi bình luận: $commentId');
       } else {
         // Add like
         await _commentsCollection.doc(commentId).update({
           'likedBy': FieldValue.arrayUnion([userId]),
         });
-        print('👍 Like added to comment: $commentId');
+        print('👍 Thích đã thêm vào bình luận: $commentId');
       }
     } catch (e) {
-      print('❌ Error toggling like: $e');
+      print('❌ Lỗi khi chuyển đổi thích: $e');
       rethrow;
     }
   }
@@ -190,9 +190,9 @@ class CommentRepository {
   Future<void> reportComment(String commentId) async {
     try {
       await _commentsCollection.doc(commentId).update({'isReported': true});
-      print('🚩 Comment reported: $commentId');
+      print('🚩 Bình luận đã báo cáo: $commentId');
     } catch (e) {
-      print('❌ Error reporting comment: $e');
+      print('❌ Lỗi khi báo cáo bình luận: $e');
       rethrow;
     }
   }
@@ -214,7 +214,7 @@ class CommentRepository {
 
       return totalCount;
     } catch (e) {
-      print('❌ Error getting comment count: $e');
+      print('❌ Lỗi khi lấy số lượng bình luận: $e');
       return 0;
     }
   }

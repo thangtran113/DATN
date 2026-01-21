@@ -17,7 +17,22 @@ class AuthRepository {
   Stream<User?> get userStream {
     return _firebaseAuth.authStateChanges().asyncMap((firebaseUser) async {
       if (firebaseUser == null) return null;
-      return _getUserFromFirestore(firebaseUser.uid);
+
+      try {
+        final user = await _getUserFromFirestore(firebaseUser.uid);
+
+        // Nếu tài khoản bị cấm, tự động đăng xuất
+        if (user.isBanned) {
+          await _firebaseAuth.signOut();
+          return null;
+        }
+
+        return user;
+      } catch (e) {
+        // Nếu không lấy được user từ Firestore, đăng xuất
+        await _firebaseAuth.signOut();
+        return null;
+      }
     });
   }
 
@@ -25,7 +40,22 @@ class AuthRepository {
   Future<User?> get currentUser async {
     final firebaseUser = _firebaseAuth.currentUser;
     if (firebaseUser == null) return null;
-    return _getUserFromFirestore(firebaseUser.uid);
+
+    try {
+      final user = await _getUserFromFirestore(firebaseUser.uid);
+
+      // Nếu tài khoản bị banned, tự động đăng xuất
+      if (user.isBanned) {
+        await _firebaseAuth.signOut();
+        return null;
+      }
+
+      return user;
+    } catch (e) {
+      // Nếu không lấy được user từ Firestore, đăng xuất
+      await _firebaseAuth.signOut();
+      return null;
+    }
   }
 
   /// Kiểm tra username có khả dụng không
@@ -67,7 +97,17 @@ class AuthRepository {
       if (credential.user == null) throw Exception('Đăng nhập thất bại');
 
       await _updateLastLoginTime(credential.user!.uid);
-      return _getUserFromFirestore(credential.user!.uid);
+      final user = await _getUserFromFirestore(credential.user!.uid);
+
+      // Kiểm tra tài khoản có bị banned không
+      if (user.isBanned) {
+        await _firebaseAuth.signOut();
+        throw Exception(
+          'Tài khoản của bạn đã bị cấm. Vui lòng liên hệ quản trị viên.',
+        );
+      }
+
+      return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
@@ -88,11 +128,12 @@ class AuthRepository {
 
       await _updateLastLoginTime(credential.user!.uid);
 
+      User user;
       try {
-        return _getUserFromFirestore(credential.user!.uid);
+        user = await _getUserFromFirestore(credential.user!.uid);
       } catch (e) {
-        // Tự động tạo user document nếu chưa có
-        final user = User(
+        // Tự động tạo tài liệu người dùng nếu chưa có
+        user = User(
           id: credential.user!.uid,
           username: email.split('@')[0].toLowerCase(),
           email: email,
@@ -102,8 +143,15 @@ class AuthRepository {
           lastLoginAt: DateTime.now(),
         );
         await _createUserInFirestore(user);
-        return user;
       }
+
+      // Kiểm tra tài khoản có bị banned không
+      if (user.isBanned) {
+        await _firebaseAuth.signOut();
+        throw Exception('Tài khoản của bạn đã bị khóa');
+      }
+
+      return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
@@ -117,19 +165,34 @@ class AuthRepository {
     String? displayName,
   }) async {
     try {
+      print('🔵 Bắt đầu đăng ký...');
+      print('  Tên người dùng: $username');
+      print('  Email: $email');
+
       if (!await isUsernameAvailable(username)) {
+        print('❌ Tên người dùng đã được sử dụng');
         throw Exception('Username đã được sử dụng');
       }
+
+      print('✅ Tên người dùng có sẵn');
+      print('🔵 Đang tạo người dùng Firebase Auth...');
 
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      if (credential.user == null) throw Exception('Đăng ký thất bại');
+      print('✅ Người dùng Firebase Auth đã tạo: ${credential.user?.uid}');
+
+      if (credential.user == null) {
+        print('❌ Người dùng thông tin xác thực là null');
+        throw Exception('Đăng ký thất bại');
+      }
 
       if (displayName != null) {
-        await credential.user!.updateDisplayName(displayName);
+        print('🔵 Đang cập nhật tên hiển thị...');
+        await credential.user!.updateDisplayName(username);
+        print('✅ Tên hiển thị đã cập nhật');
       }
 
       final user = User(
@@ -141,11 +204,30 @@ class AuthRepository {
         lastLoginAt: DateTime.now(),
       );
 
+      print('🔵 Đang tạo người dùng trong Firestore...');
+      print('  Dữ liệu người dùng: ${user.toJson()}');
+
+      // SỬA LỐI QUAN TRỌNG: Đăng nhập lại để đảm bảo mã xác thực được gắn vào yêu cầu Firestore
+      // createUserWithEmailAndPassword trên Web không tự động gắn mã thông báo
+      print('🔵 Đang đăng nhập để gắn mã xác thực...');
+      await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      print('✅ Đã đăng nhập, mã xác thực đã gắn');
+
+      // Trì hoãn nhỏ để đảm bảo mã thông báo được truyền đi
+      await Future.delayed(const Duration(milliseconds: 300));
+
       await _createUserInFirestore(user);
+      print('✅ Người dùng đã tạo trong Firestore');
+
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
+      print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
       throw _handleAuthException(e);
     } catch (e) {
+      print('❌ Ngoại lệ chung: $e');
       if (e.toString().contains('Username')) rethrow;
       throw Exception('Đăng ký thất bại: $e');
     }
@@ -154,17 +236,17 @@ class AuthRepository {
   /// Đăng nhập bằng Google (dùng Firebase signInWithPopup)
   Future<User> signInWithGoogle() async {
     try {
-      // Create a GoogleAuthProvider
+      // Tạo GoogleAuthProvider
       final googleProvider = firebase_auth.GoogleAuthProvider();
 
-      // Add scopes
+      // Thêm phạm vi
       googleProvider.addScope('email');
       googleProvider.addScope('profile');
 
-      // Set custom parameters
+      // Đặt tham số tùy chỉnh
       googleProvider.setCustomParameters({'prompt': 'select_account'});
 
-      // Sign in with popup - CORS warning is OK, login still works
+      // Đăng nhập bằng popup - Cảnh báo CORS không sao, đăng nhập vẫn hoạt động
       final userCredential = await _firebaseAuth.signInWithPopup(
         googleProvider,
       );
@@ -173,15 +255,16 @@ class AuthRepository {
         throw Exception('Đăng nhập thất bại');
       }
 
-      // Check if user exists in Firestore
+      // Kiểm tra người dùng có tồn tại trong Firestore không
       final userDoc = await _firestore
           .collection('users')
           .doc(userCredential.user!.uid)
           .get();
 
+      User user;
       if (!userDoc.exists) {
-        // Create new user in Firestore
-        final newUser = User(
+        // Tạo người dùng mới trong Firestore
+        user = User(
           id: userCredential.user!.uid,
           username: userCredential.user!.email!.split('@')[0].toLowerCase(),
           email: userCredential.user!.email!,
@@ -190,13 +273,20 @@ class AuthRepository {
           createdAt: DateTime.now(),
           lastLoginAt: DateTime.now(),
         );
-        await _createUserInFirestore(newUser);
-        return newUser;
+        await _createUserInFirestore(user);
       } else {
-        // Update last login time
+        // Cập nhật thời gian đăng nhập cuối
         await _updateLastLoginTime(userCredential.user!.uid);
-        return _getUserFromFirestore(userCredential.user!.uid);
+        user = await _getUserFromFirestore(userCredential.user!.uid);
       }
+
+      // Kiểm tra tài khoản có bị banned không
+      if (user.isBanned) {
+        await _firebaseAuth.signOut();
+        throw Exception('Tài khoản của bạn đã bị khóa');
+      }
+
+      return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
       if (e.code == 'popup-closed-by-user') {
         throw Exception('Đăng nhập bị hủy');
@@ -206,6 +296,45 @@ class AuthRepository {
       throw _handleAuthException(e);
     } catch (e) {
       throw Exception('Lỗi đăng nhập Google: $e');
+    }
+  }
+
+  /// Đăng nhập ẩn danh (khách vãng lai)
+  Future<User> signInAnonymously() async {
+    try {
+      final userCredential = await _firebaseAuth.signInAnonymously();
+
+      if (userCredential.user == null) {
+        throw Exception('Đăng nhập thất bại');
+      }
+
+      // Tạo hồ sơ người dùng cho khách vãng lai
+      final anonymousUser = User(
+        id: userCredential.user!.uid,
+        username: 'guest_${userCredential.user!.uid.substring(0, 8)}',
+        email: null,
+        displayName: 'Khách vãng lai',
+        photoUrl: null,
+        createdAt: DateTime.now(),
+        lastLoginAt: DateTime.now(),
+        isAnonymous: true,
+      );
+
+      // Tạo tài liệu người dùng trong Firestore (tùy chọn - để theo dõi)
+      try {
+        await _createUserInFirestore(anonymousUser);
+      } catch (e) {
+        // Bỏ qua lỗi nếu không tạo được tài liệu
+        print('Cảnh báo: Không thể tạo tài liệu người dùng ẩn danh: $e');
+      }
+
+      // Tài khoản ẩn danh không thể bị cấm (isBanned mặc định là false)
+
+      return anonymousUser;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception('Lỗi đăng nhập khách: $e');
     }
   }
 
@@ -254,7 +383,7 @@ class AuthRepository {
       final user = _firebaseAuth.currentUser;
       if (user == null) throw Exception('Chưa đăng nhập');
 
-      // Re-authenticate user với mật khẩu hiện tại
+      // Xác thực lại người dùng với mật khẩu hiện tại
       final credential = firebase_auth.EmailAuthProvider.credential(
         email: user.email!,
         password: currentPassword,
@@ -283,12 +412,12 @@ class AuthRepository {
       final user = _firebaseAuth.currentUser;
       if (user == null) throw Exception('Chưa đăng nhập');
 
-      // Kiểm tra loại đăng nhập và re-authenticate nếu cần
+      // Kiểm tra loại đăng nhập và xác thực lại nếu cần
       final providerData = user.providerData;
       if (providerData.isNotEmpty) {
         final providerId = providerData.first.providerId;
 
-        // Nếu là Email/Password, cần re-authenticate
+        // Nếu là Email/Mật khẩu, cần xác thực lại
         if (providerId == 'password') {
           if (currentPassword == null || currentPassword.isEmpty) {
             throw Exception('Vui lòng nhập mật khẩu để xác nhận');
@@ -299,13 +428,13 @@ class AuthRepository {
           );
           await user.reauthenticateWithCredential(credential);
         }
-        // Nếu là Google Sign-In, không cần re-authenticate với password
+        // Nếu là Đăng nhập Google, không cần xác thực lại với mật khẩu
       }
 
-      // Xóa tất cả dữ liệu liên quan của user
+      // Xóa tất cả dữ liệu liên quan của người dùng
       final batch = _firestore.batch();
 
-      // Xóa user document
+      // Xóa tài liệu người dùng
       batch.delete(_firestore.collection('users').doc(user.uid));
 
       // Xóa saved_words
@@ -317,16 +446,7 @@ class AuthRepository {
         batch.delete(doc.reference);
       }
 
-      // Xóa watch_history
-      final watchHistoryQuery = await _firestore
-          .collection('watch_history')
-          .where('userId', isEqualTo: user.uid)
-          .get();
-      for (final doc in watchHistoryQuery.docs) {
-        batch.delete(doc.reference);
-      }
-
-      // Xóa watchlist
+      // Xóa danh sách xem
       final watchlistQuery = await _firestore
           .collection('watchlist')
           .where('userId', isEqualTo: user.uid)
@@ -335,19 +455,10 @@ class AuthRepository {
         batch.delete(doc.reference);
       }
 
-      // Xóa ratings
-      final ratingsQuery = await _firestore
-          .collection('movie_ratings')
-          .where('userId', isEqualTo: user.uid)
-          .get();
-      for (final doc in ratingsQuery.docs) {
-        batch.delete(doc.reference);
-      }
-
-      // Commit batch delete
+      // Cam kết xóa hàng loạt
       await batch.commit();
 
-      // Cập nhật comments: Không xóa, chỉ thay đổi userName và xóa userAvatar
+      // Cập nhật bình luận: Không xóa, chỉ thay đổi userName và xóa userAvatar
       final commentsQuery = await _firestore
           .collection('comments')
           .where('userId', isEqualTo: user.uid)
@@ -386,7 +497,20 @@ class AuthRepository {
 
   /// Tạo user mới trong Firestore
   Future<void> _createUserInFirestore(User user) async {
-    await _firestore.collection('users').doc(user.id).set(user.toJson());
+    try {
+      print('🔵 Đang tạo tài liệu người dùng trong Firestore...');
+      print('  Bộ sưu tập: users');
+      print('  ID tài liệu: ${user.id}');
+      print('  Dữ liệu: ${user.toJson()}');
+
+      // Chỉ cần đặt tài liệu - quy tắc xác thực sẽ xác minh mã thông báo
+      await _firestore.collection('users').doc(user.id).set(user.toJson());
+
+      print('✅ Tài liệu người dùng đã tạo thành công');
+    } catch (e) {
+      print('❌ Lỗi _createUserInFirestore: $e');
+      rethrow;
+    }
   }
 
   /// Cập nhật thời gian đăng nhập cuối

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_design_system.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/repositories/auth_repository.dart';
@@ -45,7 +44,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final isAvailable = await authRepo.isUsernameAvailable(username);
 
       setState(() {
-        _usernameError = isAvailable ? null : 'Username already taken';
+        _usernameError = isAvailable ? null : 'Tên đăng nhập đã được sử dụng';
       });
     } catch (e) {
       // Bỏ qua lỗi, sẽ được bắt trong quá trình đăng ký
@@ -91,12 +90,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Tạo tài khoản thành công! Vui lòng đăng nhập.',
-            ),
+          const SnackBar(
+            content: Text('Tạo tài khoản thành công! Vui lòng đăng nhập.'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 1),
+            duration: Duration(seconds: 2),
           ),
         );
 
@@ -105,11 +102,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+
+        // Dịch các lỗi Firebase phổ biến sang tiếng Việt
+        if (errorMessage.contains('email-already-in-use')) {
+          errorMessage = 'Email đã được sử dụng';
+        } else if (errorMessage.contains('invalid-email')) {
+          errorMessage = 'Email không hợp lệ';
+        } else if (errorMessage.contains('weak-password')) {
+          errorMessage = 'Mật khẩu quá yếu (tối thiểu 6 ký tự)';
+        } else if (errorMessage.contains('Username')) {
+          // Giữ nguyên message về username
+        } else if (errorMessage.contains('network-request-failed')) {
+          errorMessage = 'Lỗi kết nối mạng';
+        } else if (errorMessage.contains('permission-denied')) {
+          errorMessage = 'Lỗi quyền truy cập. Vui lòng thử lại';
+        } else if (errorMessage.contains('FirebaseAuthException')) {
+          // Extract error message from FirebaseAuthException
+          final match = RegExp(r'\] (.+)$').firstMatch(errorMessage);
+          if (match != null) {
+            errorMessage = match.group(1) ?? 'Đăng ký thất bại';
+          } else {
+            errorMessage = 'Đăng ký thất bại';
+          }
+        } else {
+          // Loại bỏ "Exception: " khỏi thông báo
+          errorMessage = errorMessage.replaceAll('Exception: ', '');
+          errorMessage = errorMessage
+              .replaceAll('[cloud_firestore/', '')
+              .replaceAll(']', '');
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(errorMessage),
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 1),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -261,7 +289,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                                   // Title
                                   Text(
-                                    'Create Account',
+                                    'Tạo Tài Khoản',
                                     style: Theme.of(context)
                                         .textTheme
                                         .headlineMedium
@@ -273,7 +301,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   AppSpacing.gapSM,
                                   Text(
-                                    'Join ${AppStrings.appName} today',
+                                    'Tham gia CineChill ngay hôm nay',
                                     style: Theme.of(context).textTheme.bodyLarge
                                         ?.copyWith(
                                           color: AppColors.textSecondary,
@@ -287,7 +315,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     controller: _nameController,
                                     validator: Validators.validateName,
                                     decoration: const InputDecoration(
-                                      labelText: 'Full Name',
+                                      labelText: 'Họ và Tên',
                                       prefixIcon: Icon(Icons.person_outlined),
                                     ),
                                   ),
@@ -304,20 +332,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         _checkUsernameAvailability,
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Please enter username';
+                                        return 'Vui lòng nhập tên đăng nhập';
                                       }
                                       if (value.length < 3) {
-                                        return 'Username must be at least 3 characters';
+                                        return 'Tên đăng nhập phải có ít nhất 3 ký tự';
                                       }
                                       if (!RegExp(
                                         r'^[a-zA-Z0-9_]+$',
                                       ).hasMatch(value)) {
-                                        return 'Username can only contain letters, numbers, and underscores';
+                                        return 'Tên đăng nhập chỉ được chứa chữ cái, số và gạch dưới';
                                       }
                                       return null;
                                     },
                                     decoration: InputDecoration(
-                                      labelText: 'Username',
+                                      labelText: 'Tên đăng nhập',
                                       prefixIcon: const Icon(
                                         Icons.alternate_email,
                                       ),
@@ -353,7 +381,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     obscureText: _obscurePassword,
                                     validator: Validators.validatePassword,
                                     decoration: InputDecoration(
-                                      labelText: 'Password',
+                                      labelText: 'Mật khẩu',
                                       prefixIcon: const Icon(
                                         Icons.lock_outlined,
                                       ),
@@ -384,7 +412,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           _passwordController.text,
                                         ),
                                     decoration: InputDecoration(
-                                      labelText: 'Confirm Password',
+                                      labelText: 'Xác nhận mật khẩu',
                                       prefixIcon: const Icon(
                                         Icons.lock_outlined,
                                       ),
@@ -427,13 +455,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           },
                                           child: Text.rich(
                                             TextSpan(
-                                              text: 'I accept the ',
+                                              text: 'Tôi đồng ý với ',
                                               style: TextStyle(
                                                 color: AppColors.textSecondary,
                                               ),
                                               children: [
                                                 TextSpan(
-                                                  text: 'Terms and Conditions',
+                                                  text:
+                                                      'Điều khoản và Điều kiện',
                                                   style: TextStyle(
                                                     color: AppColors.primary,
                                                     decoration: TextDecoration
@@ -472,7 +501,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             ),
                                           )
                                         : const Text(
-                                            'Create Account',
+                                            'Tạo tài khoản',
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
@@ -486,7 +515,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        'Already have an account? ',
+                                        'Đã có tài khoản? ',
                                         style: TextStyle(
                                           color: AppColors.textSecondary,
                                         ),
@@ -496,7 +525,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           context.go('/login');
                                         },
                                         child: Text(
-                                          'Sign In',
+                                          'Đăng nhập',
                                           style: TextStyle(
                                             color: AppColors.primary,
                                             fontWeight: FontWeight.bold,

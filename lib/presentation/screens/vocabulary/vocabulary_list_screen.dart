@@ -11,7 +11,7 @@ import '../../widgets/app_footer.dart';
 
 /// Màn hình danh sách từ vựng - Redesigned to match templates
 class VocabularyListScreen extends StatefulWidget {
-  const VocabularyListScreen({Key? key}) : super(key: key);
+  const VocabularyListScreen({super.key});
 
   @override
   State<VocabularyListScreen> createState() => _VocabularyListScreenState();
@@ -71,6 +71,47 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
+    // Yêu cầu đăng nhập để truy cập từ vựng
+    if (authProvider.user == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Column(
+          children: [
+            const AppHeader(),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.book_outlined,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Vui lòng đăng nhập để xem từ vựng',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.go('/login'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00BCD4),
+                      ),
+                      child: const Text('Đăng nhập'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -277,6 +318,7 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
             1: FlexColumnWidth(3),
             2: FlexColumnWidth(3),
             3: FlexColumnWidth(2),
+            4: FlexColumnWidth(1),
           },
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
           children: [
@@ -288,10 +330,13 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                 _buildTableHeader('Definition (En)'),
                 _buildTableHeader('Definition (Vn)'),
                 _buildTableHeader('Level'),
+                _buildTableHeader('Actions'),
               ],
             ),
             // Data rows
-            ...provider.vocabulary.map((word) => _buildTableRow(word)),
+            ...provider.vocabulary.map(
+              (word) => _buildTableRow(word, provider),
+            ),
           ],
         ),
       ),
@@ -312,7 +357,7 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
     );
   }
 
-  TableRow _buildTableRow(SavedWord word) {
+  TableRow _buildTableRow(SavedWord word, VocabularyProvider provider) {
     final masteryPercent = (word.masteryLevel * 25).toInt();
 
     return TableRow(
@@ -416,8 +461,64 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
             ],
           ),
         ),
+        // Actions
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: IconButton(
+            icon: const Icon(Icons.delete_outline, color: AppColors.error),
+            onPressed: () => _confirmDeleteWord(word, provider),
+            tooltip: 'Xóa từ vựng',
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _confirmDeleteWord(
+    SavedWord word,
+    VocabularyProvider provider,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.backgroundCard,
+        title: const Text(
+          'Xóa từ vựng',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          'Bạn có chắc chắn muốn xóa từ "${word.word}" khỏi danh sách từ vựng của bạn?',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await provider.deleteWord(word.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã xóa từ vựng'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildEmptyState() {

@@ -111,23 +111,13 @@ class RecommendationProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Combine cả history và ratings
-      final fromHistory = await _repository.getPersonalizedRecommendations(
-        userId: userId,
-        limit: limit,
-      );
+      // Chỉ dùng ratings vì chưa có watch history
       final fromRatings = await _repository.getRecommendationsFromRatings(
         userId: userId,
         limit: limit,
       );
 
-      // Merge và remove duplicates
-      final combined = <String, Movie>{};
-      for (final movie in [...fromHistory, ...fromRatings]) {
-        combined[movie.id] = movie;
-      }
-
-      _personalizedMovies = combined.values.toList();
+      _personalizedMovies = fromRatings;
 
       // Sort by rating
       _personalizedMovies.sort((a, b) => b.rating.compareTo(a.rating));

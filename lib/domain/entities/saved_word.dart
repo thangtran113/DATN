@@ -7,9 +7,6 @@ class SavedWord {
   final String? vietnameseMeaning; // Nghĩa tiếng Việt
   final String? pronunciation;
   final String? example;
-  final String? movieId;
-  final String? movieTitle;
-  final int? timestamp; // Timestamp trong video (milliseconds)
   final DateTime createdAt;
   final int masteryLevel; // 0-4: chưa học -> thành thạo
   final int reviewCount; // Số lần ôn tập
@@ -23,9 +20,6 @@ class SavedWord {
     this.vietnameseMeaning,
     this.pronunciation,
     this.example,
-    this.movieId,
-    this.movieTitle,
-    this.timestamp,
     required this.createdAt,
     this.masteryLevel = 0,
     this.reviewCount = 0,
@@ -42,9 +36,6 @@ class SavedWord {
       vietnameseMeaning: map['vietnameseMeaning'],
       pronunciation: map['pronunciation'],
       example: map['example'],
-      movieId: map['movieId'],
-      movieTitle: map['movieTitle'],
-      timestamp: map['timestamp'],
       createdAt: (map['createdAt'] as dynamic).toDate(),
       masteryLevel: map['masteryLevel'] ?? 0,
       reviewCount: map['reviewCount'] ?? 0,
@@ -63,9 +54,6 @@ class SavedWord {
       'vietnameseMeaning': vietnameseMeaning,
       'pronunciation': pronunciation,
       'example': example,
-      'movieId': movieId,
-      'movieTitle': movieTitle,
-      'timestamp': timestamp,
       'createdAt': createdAt,
       'masteryLevel': masteryLevel,
       'reviewCount': reviewCount,
@@ -82,9 +70,6 @@ class SavedWord {
     String? vietnameseMeaning,
     String? pronunciation,
     String? example,
-    String? movieId,
-    String? movieTitle,
-    int? timestamp,
     DateTime? createdAt,
     int? masteryLevel,
     int? reviewCount,
@@ -98,9 +83,6 @@ class SavedWord {
       vietnameseMeaning: vietnameseMeaning ?? this.vietnameseMeaning,
       pronunciation: pronunciation ?? this.pronunciation,
       example: example ?? this.example,
-      movieId: movieId ?? this.movieId,
-      movieTitle: movieTitle ?? this.movieTitle,
-      timestamp: timestamp ?? this.timestamp,
       createdAt: createdAt ?? this.createdAt,
       masteryLevel: masteryLevel ?? this.masteryLevel,
       reviewCount: reviewCount ?? this.reviewCount,

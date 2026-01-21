@@ -20,16 +20,18 @@ class _MovieListScreenState extends State<MovieListScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedGenre;
 
-  // Map để convert tên tiếng Việt sang tiếng Anh
+  // Bản đồ để chuyển đổi tên hiển thị sang tên trong Firebase
   final Map<String, String> _genreMap = {
-    'Hành động': 'Action',
-    'Tình cảm': 'Romance',
-    'Khoa học viễn tưởng': 'Science Fiction',
-    'Hoạt hình': 'Animation',
-    'Kinh dị': 'Horror',
-    'Hài hước': 'Comedy',
-    'Tâm lý': 'Drama',
-    'Phiêu lưu': 'Adventure',
+    'Hành động': 'Phim Hành Động',
+    'Tình cảm': 'Phim Tình Cảm',
+    'Khoa học viễn tưởng': 'Phim Khoa Học Viễn Tưởng',
+    'Hoạt hình': 'Phim Hoạt Hình',
+    'Kinh dị': 'Phim Kinh Dị',
+    'Hài hước': 'Phim Hài',
+    'Chính kịch': 'Phim Chính Kịch',
+    'Phiêu lưu': 'Phim Phiêu Lưu',
+    'Gia đình': 'Phim Gia Đình',
+    'Hình sự': 'Phim Hình Sự',
   };
 
   @override
@@ -51,33 +53,36 @@ class _MovieListScreenState extends State<MovieListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 900;
+    final isDesktop = screenWidth >= 900;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AppHeader(),
-      drawer: isMobile ? _buildDrawer() : null,
+      drawer: !isDesktop ? _buildDrawer() : null,
       body: Consumer<MovieProvider>(
         builder: (context, movieProvider, child) {
           return Row(
             children: [
-              // Sidebar - only show on desktop
-              if (!isMobile)
+              // Thanh bên - chỉ hiển trên màn hình lớn
+              if (isDesktop)
                 Container(
-                  width: 250,
+                  width: screenWidth > 1400 ? 280 : 250,
                   color: const Color(0xFF1A1A1A),
                   child: _buildSidebar(),
                 ),
 
-              // Main content
+              // Nội dung chính
               Expanded(
                 child: CustomScrollView(
                   controller: _scrollController,
                   slivers: [
-                    // Search bar
+                    // Thanh tìm kiếm
                     SliverToBoxAdapter(
                       child: Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: EdgeInsets.all(isMobile ? 12 : 20),
                         color: const Color(0xFF1A1A1A),
                         child: Row(
                           children: [
@@ -107,37 +112,42 @@ class _MovieListScreenState extends State<MovieListScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                     borderSide: BorderSide.none,
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 14,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: isMobile ? 12 : 16,
+                                    vertical: isMobile ? 12 : 14,
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                // Filter action
-                              },
-                              label: const Text('Tìm Kiếm'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFE50914),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                            if (!isMobile) const SizedBox(width: 12),
+                            if (!isMobile)
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  final query = _searchController.text.trim();
+                                  if (query.isNotEmpty) {
+                                    movieProvider.searchMovies(query);
+                                  }
+                                },
+                                icon: const Icon(Icons.search, size: 18),
+                                label: const Text('Tìm Kiếm'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE50914),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                               ),
-                            ),
                           ],
                         ),
                       ),
                     ),
 
-                    // Movies grid
+                    // Lưới phim
                     Builder(
                       builder: (context) {
                         final displayMovies = _searchController.text.isNotEmpty
@@ -180,21 +190,25 @@ class _MovieListScreenState extends State<MovieListScreen> {
                           );
 
                         return SliverPadding(
-                          padding: const EdgeInsets.all(20),
+                          padding: EdgeInsets.all(_getGridPadding(context)),
                           sliver: SliverGrid(
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: _getGridColumns(context),
-                                  childAspectRatio: 0.65,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 20,
+                                  childAspectRatio: _getChildAspectRatio(
+                                    context,
+                                  ),
+                                  crossAxisSpacing: _getCrossAxisSpacing(
+                                    context,
+                                  ),
+                                  mainAxisSpacing: _getMainAxisSpacing(context),
                                 ),
                             delegate: SliverChildBuilderDelegate((
                               context,
                               index,
                             ) {
                               final movie = displayMovies[index];
-                              // Add staggered animation to movie cards
+                              // Thêm hiệu ứng chuyển động lệch thời gian cho các thẻ phim
                               return SlideInFromBottom(
                                 delay: Duration(
                                   milliseconds: 50 * (index % 10),
@@ -207,7 +221,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
                       },
                     ),
 
-                    // Loading more
+                    // Đang tải thêm
                     if (movieProvider.isLoadingMore)
                       const SliverToBoxAdapter(
                         child: Padding(
@@ -220,7 +234,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
                         ),
                       ),
 
-                    // Footer
+                    // Chân trang
                     const SliverToBoxAdapter(child: AppFooter()),
                   ],
                 ),
@@ -234,12 +248,47 @@ class _MovieListScreenState extends State<MovieListScreen> {
 
   int _getGridColumns(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    final bool isMobile = width < 600;
-    final bool isTablet = width >= 600 && width < 900;
 
-    if (isMobile) return 2;
-    if (isTablet) return 3;
-    return 5; // Desktop
+    // Mobile: < 600px
+    if (width < 600) return 2;
+
+    // Máy tính bảng: 600-900px
+    if (width < 900) return 3;
+
+    // Màn hình nhỏ: 900-1200px
+    if (width < 1200) return 4;
+
+    // Màn hình trung bình: 1200-1600px
+    if (width < 1600) return 5;
+
+    // Màn hình lớn: >= 1600px
+    return 6;
+  }
+
+  double _getCrossAxisSpacing(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) return 8.0;
+    if (width < 900) return 12.0;
+    return 16.0;
+  }
+
+  double _getMainAxisSpacing(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) return 12.0;
+    if (width < 900) return 16.0;
+    return 20.0;
+  }
+
+  double _getGridPadding(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) return 12.0;
+    if (width < 900) return 16.0;
+    return 20.0;
+  }
+
+  double _getChildAspectRatio(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    return width < 600 ? 0.7 : 0.65;
   }
 
   Widget _buildDrawer() {
@@ -261,7 +310,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 24),
         children: [
-          // Logo/Title
+          // Logo/Tiêu đề
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: const Text(
@@ -282,8 +331,10 @@ class _MovieListScreenState extends State<MovieListScreen> {
             {'name': 'Hoạt hình', 'icon': Icons.animation},
             {'name': 'Kinh dị', 'icon': Icons.nightlight},
             {'name': 'Hài hước', 'icon': Icons.emoji_emotions},
-            {'name': 'Tâm lý', 'icon': Icons.psychology},
+            {'name': 'Chính kịch', 'icon': Icons.psychology},
             {'name': 'Phiêu lưu', 'icon': Icons.explore},
+            {'name': 'Gia đình', 'icon': Icons.family_restroom},
+            {'name': 'Hình sự', 'icon': Icons.gavel},
           ]),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -402,11 +453,11 @@ class _MovieListScreenState extends State<MovieListScreen> {
     final movieProvider = Provider.of<MovieProvider>(context, listen: false);
 
     setState(() {
-      // Clear search khi filter
+      // Xóa tìm kiếm khi lọc
       _searchController.clear();
       movieProvider.clearSearch();
 
-      // Nếu click vào item đang active thì bỏ filter
+      // Nếu click vào mục đang active thì bỏ lọc
       if (_selectedGenre == label) {
         _selectedGenre = null;
         movieProvider.fetchMovies();
@@ -415,7 +466,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
 
       _selectedGenre = label;
 
-      // Xác định loại filter
+      // Xác định loại bộ lọc
       if (_genreMap.containsKey(label)) {
         // Lọc theo thể loại
         final englishGenre = _genreMap[label]!;
@@ -459,7 +510,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
 
   Widget _buildRoPhimCard(movie) {
     return AnimatedCard(
-      onTap: () => context.push('/home/${movie.id}'),
+      onTap: () => context.go('/home/${movie.id}'),
       color: AppColors.backgroundCard,
       borderRadius: AppRadius.radiusMD,
       padding: EdgeInsets.zero,
@@ -536,16 +587,20 @@ class _MovieListScreenState extends State<MovieListScreen> {
             ),
             // Info
             Container(
-              padding: const EdgeInsets.all(12.0),
+              padding: EdgeInsets.all(
+                MediaQuery.of(context).size.width < 600 ? 8.0 : 12.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     movie.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
+                      fontSize: MediaQuery.of(context).size.width < 600
+                          ? 12
+                          : 13,
                       fontWeight: FontWeight.bold,
                     ),
                     maxLines: 1,

@@ -10,9 +10,9 @@ class CommentProvider with ChangeNotifier {
     : _repository = repository ?? CommentRepository();
 
   // State
-  List<Comment> _comments = [];
-  Map<String, List<Comment>> _replies = {}; // commentId -> list of replies
-  bool _isLoading = false;
+  final List<Comment> _comments = [];
+  final Map<String, List<Comment>> _replies = {}; // commentId -> list of replies
+  final bool _isLoading = false;
   bool _isSubmitting = false;
   String? _error;
 

@@ -1,116 +1,135 @@
-/// Chuỗi ký tự ứng dụng (có thể thêm đa ngôn ngữ sau)
+/// Chuỗi ký tự ứng dụng (Tiếng Việt)
 class AppStrings {
   /// Thông tin ứng dụng
   static const String appName = 'CineChill';
-  static const String appTagline = 'Learn English Through Movies';
+  static const String appTagline = 'Học Tiếng Anh Qua Phim';
 
   /// Xác thực
-  static const String login = 'Login';
-  static const String register = 'Register';
-  static const String logout = 'Logout';
+  static const String login = 'Đăng Nhập';
+  static const String register = 'Đăng Ký';
+  static const String logout = 'Đăng Xuất';
   static const String email = 'Email';
-  static const String password = 'Password';
-  static const String confirmPassword = 'Confirm Password';
-  static const String forgotPassword = 'Forgot Password?';
-  static const String resetPassword = 'Reset Password';
-  static const String dontHaveAccount = "Don't have an account?";
-  static const String alreadyHaveAccount = 'Already have an account?';
-  static const String signInWithGoogle = 'Sign in with Google';
+  static const String password = 'Mật Khẩu';
+  static const String confirmPassword = 'Xác Nhận Mật Khẩu';
+  static const String forgotPassword = 'Quên Mật Khẩu?';
+  static const String resetPassword = 'Đặt Lại Mật Khẩu';
+  static const String dontHaveAccount = "Chưa có tài khoản?";
+  static const String alreadyHaveAccount = 'Đã có tài khoản?';
+  static const String signInWithGoogle = 'Đăng Nhập Với Google';
+  static const String fullName = 'Họ và Tên';
 
   /// Điều hướng
-  static const String home = 'Home';
-  static const String browse = 'Browse';
-  static const String search = 'Search';
-  static const String profile = 'Profile';
+  static const String home = 'Trang Chủ';
+  static const String browse = 'Khám Phá';
+  static const String search = 'Tìm Kiếm';
+  static const String profile = 'Hồ Sơ';
 
   /// Phim
-  static const String featuredMovies = 'Featured Movies';
-  static const String popularMovies = 'Popular Movies';
-  static const String newReleases = 'New Releases';
-  static const String continueWatching = 'Continue Watching';
-  static const String recommended = 'Recommended for You';
-  static const String similarMovies = 'Similar Movies';
-  static const String becauseYouWatched = 'Because You Watched';
+  static const String featuredMovies = 'Phim Nổi Bật';
+  static const String popularMovies = 'Phim Phổ Biến';
+  static const String newReleases = 'Phim Mới Phát Hành';
+  static const String continueWatching = 'Xem Tiếp';
+  static const String recommended = 'Gợi Ý Cho Bạn';
+  static const String similarMovies = 'Phim Tương Tự';
+  static const String becauseYouWatched = 'Vì Bạn Đã Xem';
+  static const String allMovies = 'Tất Cả Phim';
 
   /// Chi tiết phim
-  static const String director = 'Director';
-  static const String cast = 'Cast';
-  static const String genre = 'Genre';
-  static const String duration = 'Duration';
-  static const String releaseYear = 'Release Year';
-  static const String rating = 'Rating';
-  static const String viewCount = 'Views';
+  static const String director = 'Đạo Diễn';
+  static const String cast = 'Diễn Viên';
+  static const String genre = 'Thể Loại';
+  static const String duration = 'Thời Lượng';
+  static const String releaseYear = 'Năm Phát Hành';
+  static const String rating = 'Đánh Giá';
+  static const String viewCount = 'Lượt Xem';
+  static const String level = 'Độ Khó';
+  static const String overview = 'Tóm Tắt';
 
   /// Trình phát
-  static const String play = 'Play';
-  static const String pause = 'Pause';
-  static const String playbackSpeed = 'Playback Speed';
-  static const String subtitles = 'Subtitles';
-  static const String quality = 'Quality';
+  static const String play = 'Phát';
+  static const String pause = 'Tạm Dừng';
+  static const String playbackSpeed = 'Tốc Độ Phát';
+  static const String subtitles = 'Phụ Đề';
+  static const String quality = 'Chất Lượng';
+  static const String volume = 'Âm Lượng';
+  static const String fullscreen = 'Toàn Màn Hình';
 
   /// Học tập
-  static const String vocabulary = 'Vocabulary';
-  static const String savedWords = 'Saved Words';
-  static const String practice = 'Practice';
-  static const String loop = 'Loop';
-  static const String dictionary = 'Dictionary';
-  static const String pronunciation = 'Pronunciation';
-  static const String example = 'Example';
-  static const String saveWord = 'Save Word';
+  static const String vocabulary = 'Từ Vựng';
+  static const String savedWords = 'Từ Đã Lưu';
+  static const String practice = 'Luyện Tập';
+  static const String loop = 'Lặp Lại';
+  static const String dictionary = 'Từ Điển';
+  static const String pronunciation = 'Phát Âm';
+  static const String example = 'Ví Dụ';
+  static const String saveWord = 'Lưu Từ';
+  static const String flashcards = 'Thẻ Ghi Nhớ';
+  static const String quiz = 'Trắc Nghiệm';
+  static const String translation = 'Dịch';
+  static const String definition = 'Định Nghĩa';
 
   /// Tương tác xã hội
-  static const String comments = 'Comments';
-  static const String writeComment = 'Write a comment...';
-  static const String rateMovie = 'Rate this movie';
-  static const String like = 'Like';
-  static const String reply = 'Reply';
+  static const String comments = 'Bình Luận';
+  static const String writeComment = 'Viết bình luận...';
+  static const String rateMovie = 'Đánh giá phim';
+  static const String like = 'Thích';
+  static const String reply = 'Trả Lời';
 
   /// Danh sách xem
-  static const String watchlist = 'My Watchlist';
-  static const String history = 'Watch History';
-  static const String addToWatchlist = 'Add to Watchlist';
-  static const String removeFromWatchlist = 'Remove from Watchlist';
+  static const String watchlist = 'Danh Sách Yêu Thích';
+  static const String history = 'Lịch Sử Xem';
+  static const String addToWatchlist = 'Thêm Vào Yêu Thích';
+  static const String removeFromWatchlist = 'Xóa Khỏi Yêu Thích';
 
   /// Hồ sơ
-  static const String editProfile = 'Edit Profile';
-  static const String settings = 'Settings';
-  static const String statistics = 'Statistics';
-  static const String changePassword = 'Change Password';
+  static const String editProfile = 'Chỉnh Sửa Hồ Sơ';
+  static const String settings = 'Cài Đặt';
+  static const String statistics = 'Thống Kê';
+  static const String changePassword = 'Đổi Mật Khẩu';
+  static const String account = 'Tài Khoản';
 
   /// Quản trị
-  static const String adminPanel = 'Admin Panel';
-  static const String dashboard = 'Dashboard';
-  static const String manageMovies = 'Manage Movies';
-  static const String manageUsers = 'Manage Users';
-  static const String uploadMovie = 'Upload Movie';
+  static const String adminPanel = 'Quản Trị';
+  static const String dashboard = 'Tổng Quan';
+  static const String manageMovies = 'Quản Lý Phim';
+  static const String manageUsers = 'Quản Lý Người Dùng';
+  static const String uploadMovie = 'Tải Lên Phim';
+  static const String addMovie = 'Thêm Phim';
+  static const String importFromTMDB = 'Import Từ TMDB';
+  static const String addManually = 'Thêm Thủ Công';
 
   /// Chung
-  static const String save = 'Save';
-  static const String cancel = 'Cancel';
-  static const String delete = 'Delete';
-  static const String edit = 'Edit';
-  static const String submit = 'Submit';
-  static const String confirm = 'Confirm';
-  static const String close = 'Close';
-  static const String loading = 'Loading...';
-  static const String error = 'Error';
-  static const String success = 'Success';
-  static const String tryAgain = 'Try Again';
-  static const String noData = 'No data available';
-  static const String comingSoon = 'Coming Soon';
+  static const String save = 'Lưu';
+  static const String cancel = 'Hủy';
+  static const String delete = 'Xóa';
+  static const String edit = 'Sửa';
+  static const String submit = 'Gửi';
+  static const String confirm = 'Xác Nhận';
+  static const String close = 'Đóng';
+  static const String loading = 'Đang tải...';
+  static const String error = 'Lỗi';
+  static const String success = 'Thành Công';
+  static const String tryAgain = 'Thử Lại';
+  static const String noData = 'Không có dữ liệu';
+  static const String comingSoon = 'Sắp Ra Mắt';
+  static const String back = 'Quay Lại';
+  static const String next = 'Tiếp';
+  static const String previous = 'Trước';
 
   /// Thông báo lỗi
-  static const String errorGeneric = 'Something went wrong. Please try again.';
-  static const String errorNetwork =
-      'Network error. Please check your connection.';
-  static const String errorLogin = 'Invalid email or password.';
-  static const String errorEmailInUse = 'Email already in use.';
-  static const String errorWeakPassword = 'Password is too weak.';
+  static const String errorGeneric = 'Có lỗi xảy ra. Vui lòng thử lại.';
+  static const String errorNetwork = 'Lỗi kết nối mạng. Vui lòng kiểm tra lại.';
+  static const String errorLogin = 'Email hoặc mật khẩu không đúng.';
+  static const String errorEmailInUse = 'Email đã được sử dụng.';
+  static const String errorWeakPassword = 'Mật khẩu quá yếu.';
+  static const String errorPermission = 'Bạn không có quyền truy cập.';
 
   /// Thông báo thành công
-  static const String successLogin = 'Logged in successfully!';
-  static const String successRegister = 'Account created successfully!';
-  static const String successPasswordReset = 'Password reset email sent!';
-  static const String successCommentAdded = 'Comment added successfully!';
-  static const String successWordSaved = 'Word saved to vocabulary!';
+  static const String successLogin = 'Đăng nhập thành công!';
+  static const String successRegister = 'Tạo tài khoản thành công!';
+  static const String successPasswordReset = 'Đã gửi email đặt lại mật khẩu!';
+  static const String successCommentAdded = 'Đã thêm bình luận!';
+  static const String successWordSaved = 'Đã lưu từ vào danh sách!';
+  static const String successDeleted = 'Đã xóa thành công!';
+  static const String successUpdated = 'Đã cập nhật thành công!';
 }

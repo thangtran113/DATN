@@ -8,12 +8,12 @@ class NetflixMovieCard extends StatelessWidget {
   final double? height;
 
   const NetflixMovieCard({
-    Key? key,
+    super.key,
     required this.movie,
     required this.onTap,
     this.width,
     this.height,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

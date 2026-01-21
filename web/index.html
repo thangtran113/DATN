@@ -63,7 +63,6 @@
     <link rel="icon" type="image/png" href="favicon.png" />
 
     <title>CineChill - Learn English Through Movies</title>
-    <link rel="manifest" href="manifest.json" />
 
     <style>
       body {
@@ -81,11 +80,18 @@
         background-color: #0f0f0f;
       }
 
+      .logo-img {
+        width: 200px;
+        height: 200px;
+        margin-bottom: 40px;
+        object-fit: contain;
+      }
+
       .loader {
         width: 50px;
         height: 50px;
-        border: 4px solid #2a2a2a;
-        border-top: 4px solid #e50914;
+        border: 3px solid #2a2a2a;
+        border-top: 3px solid #00bcd4;
         border-radius: 50%;
         animation: spin 1s linear infinite;
         will-change: transform;
@@ -100,25 +106,52 @@
         }
       }
 
-      .logo-text {
-        margin-top: 20px;
-        color: #e50914;
-        font-size: 24px;
-        font-weight: bold;
-        letter-spacing: 2px;
+      .loading-text {
+        margin-top: 24px;
+        color: #9e9e9e;
+        font-size: 16px;
+        font-weight: 500;
         font-family: system-ui, -apple-system, sans-serif;
       }
     </style>
   </head>
   <body>
     <div id="loading">
+      <img
+        src="logo.png"
+        alt="CineChill Logo"
+        class="logo-img"
+        onerror="this.style.display='none'"
+      />
       <div class="loader"></div>
-      <div class="logo-text">CINECHILL</div>
+      <div class="loading-text">Đang tải...</div>
     </div>
 
     <script src="flutter_bootstrap.js" async></script>
 
     <script>
+      // FORCE unregister ALL service workers (fix video caching issue)
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .getRegistrations()
+          .then(function (registrations) {
+            for (let registration of registrations) {
+              registration.unregister();
+              console.log("Service Worker unregistered");
+            }
+          });
+
+        // Clear ALL caches
+        if ("caches" in window) {
+          caches.keys().then(function (names) {
+            for (let name of names) {
+              caches.delete(name);
+              console.log("Cache deleted:", name);
+            }
+          });
+        }
+      }
+
       window.addEventListener("flutter-first-frame", function () {
         const loading = document.querySelector("#loading");
         if (loading) {

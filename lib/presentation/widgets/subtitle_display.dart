@@ -9,13 +9,13 @@ class SubtitleDisplay extends StatefulWidget {
   final Function(String)? onWordTap; // Callback when word is clicked
 
   const SubtitleDisplay({
-    Key? key,
+    super.key,
     required this.currentSubtitle,
     this.onTap,
     this.showVietnamese = true,
     this.fontSize = 36.0,
     this.onWordTap,
-  }) : super(key: key);
+  });
 
   @override
   State<SubtitleDisplay> createState() => _SubtitleDisplayState();
@@ -191,7 +191,7 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
     );
   }
 
-  /// Build clickable text where each word is tappable
+  /// Tạo văn bản có thể nhấp chuột
   Widget _buildClickableText(String text, TextStyle style) {
     // Tách văn bản thành các từ
     final words = text.split(RegExp(r'\s+'));

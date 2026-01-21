@@ -7,13 +7,13 @@ import '../../domain/entities/word_definition.dart';
 /// Hiển thị định nghĩa từ trong bottom sheet
 class DictionaryPopup extends StatefulWidget {
   final WordDefinition wordDefinition;
-  final VoidCallback? onSaveWord;
+  final Function(String vietnameseMeaning)? onSaveWord;
 
   const DictionaryPopup({
-    Key? key,
+    super.key,
     required this.wordDefinition,
     this.onSaveWord,
-  }) : super(key: key);
+  });
 
   @override
   State<DictionaryPopup> createState() => _DictionaryPopupState();
@@ -43,7 +43,7 @@ class _DictionaryPopupState extends State<DictionaryPopup> {
     });
 
     _flutterTts.setErrorHandler((msg) {
-      print('❌ TTS Error: $msg');
+      print('❌ Lỗi TTS: $msg');
       setState(() => _isSpeaking = false);
     });
   }
@@ -80,7 +80,7 @@ class _DictionaryPopupState extends State<DictionaryPopup> {
       _translationCache[text] = translation.text;
       return translation.text;
     } catch (e) {
-      print('Translation error: $e');
+      print('Lỗi dịch: $e');
       return text; // Trả về text gốc nếu dịch lỗi
     }
   }
@@ -170,18 +170,33 @@ class _DictionaryPopupState extends State<DictionaryPopup> {
                 // Nút lưu
                 IconButton(
                   icon: const Icon(Icons.bookmark_border, color: Colors.white),
-                  onPressed: () {
-                    widget.onSaveWord?.call();
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Đã lưu "${widget.wordDefinition.word}" vào từ vựng',
-                        ),
-                        duration: const Duration(seconds: 1),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                  onPressed: () async {
+                    // Dịch nghĩa đầu tiên sang tiếng Việt trước khi lưu
+                    String vietnameseMeaning = '';
+                    if (widget.wordDefinition.meanings.isNotEmpty &&
+                        widget
+                            .wordDefinition
+                            .meanings
+                            .first
+                            .definitions
+                            .isNotEmpty) {
+                      final firstDefinition = widget
+                          .wordDefinition
+                          .meanings
+                          .first
+                          .definitions
+                          .first
+                          .definition;
+                      vietnameseMeaning = await _translateText(firstDefinition);
+                    }
+
+                    // Đóng popup trước
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+
+                    // Sau đó mới gọi callback lưu từ
+                    widget.onSaveWord?.call(vietnameseMeaning);
                   },
                   tooltip: 'Lưu vào từ vựng',
                 ),

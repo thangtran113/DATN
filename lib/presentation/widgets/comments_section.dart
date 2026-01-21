@@ -9,7 +9,7 @@ import 'comment_input.dart';
 class CommentsSection extends StatefulWidget {
   final String movieId;
 
-  const CommentsSection({Key? key, required this.movieId}) : super(key: key);
+  const CommentsSection({super.key, required this.movieId});
 
   @override
   State<CommentsSection> createState() => _CommentsSectionState();
@@ -30,7 +30,7 @@ class _CommentsSectionState extends State<CommentsSection> {
         Row(
           children: [
             const Text(
-              'Comments',
+              'Bình luận',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -110,7 +110,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Error loading comments',
+                        'Lỗi khi tải bình luận',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.6),
                           fontSize: 16,
@@ -137,7 +137,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No comments yet',
+                        'Chưa có bình luận',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.6),
                           fontSize: 16,
@@ -145,7 +145,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Be the first to comment!',
+                        'Hãy là người đầu tiên bình luận!',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.4),
                           fontSize: 14,

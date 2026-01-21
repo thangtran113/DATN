@@ -9,18 +9,18 @@ class MovieImportRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Import a movie from TMDB by ID with Vietnamese metadata (fallback to English)
-  /// Note: Only imports metadata and trailer. Video and subtitles must be uploaded manually.
+  /// Note: Only imports metadata (title, description, poster, etc.). Video, trailer and subtitles must be uploaded manually.
   Future<Movie> importMovieFromTMDB(int tmdbId) async {
     try {
       // Step 1: Get movie details from TMDB in Vietnamese
-      print('Fetching movie details from TMDB (Vietnamese)...');
+      print('Lấy thông tin chi tiết phim từ TMDB (Tiếng Việt)...');
       final tmdbMovieVi = await _tmdbService.getMovieDetails(
         tmdbId,
         language: 'vi',
       );
 
       // Step 2: Get English version for fallback (if Vietnamese is empty)
-      print('Fetching English version for fallback...');
+      print('Lấy phiên bản tiếng Anh để dự phòng...');
       final tmdbMovieEn = await _tmdbService.getMovieDetails(
         tmdbId,
         language: 'en-US',
@@ -29,20 +29,14 @@ class MovieImportRepository {
       // Step 3: Merge data - use Vietnamese if available, otherwise English
       final tmdbMovie = _mergeMovieData(tmdbMovieVi, tmdbMovieEn);
 
-      // Step 4: Get trailer URL
-      print('Fetching trailer...');
-      final trailerUrl = await _tmdbService.getMovieTrailer(
-        tmdbId,
-        language: 'vi',
-      );
-
-      // Step 5: Convert to our format
+      // Step 4: Convert to our format
       final movieData = _tmdbService.convertToMovieFormat(tmdbMovie);
-      movieData['trailerUrl'] = trailerUrl;
+      movieData['trailerUrl'] =
+          null; // Will be uploaded manually via admin panel
       movieData['videoUrl'] = null; // Will be uploaded manually via admin panel
 
-      // Step 4: Create Firestore document
-      print('Saving to Firestore...');
+      // Step 5: Create Firestore document
+      print('Đang lưu vào Firestore...');
       final docRef = _firestore.collection('movies').doc();
 
       final movie = Movie(
@@ -68,7 +62,7 @@ class MovieImportRepository {
 
       await docRef.set(movie.toJson());
 
-      print('Movie imported successfully: ${movie.title}');
+      print('Phim đã nhập thành công: ${movie.title}');
       return movie;
     } catch (e) {
       throw Exception('Failed to import movie: $e');
@@ -78,7 +72,7 @@ class MovieImportRepository {
   /// Import multiple popular movies with Vietnamese metadata
   Future<List<Movie>> importPopularMovies({int count = 20}) async {
     try {
-      print('Fetching popular movies from TMDB (Vietnamese)...');
+      print('Lấy phim phổ biến từ TMDB (Tiếng Việt)...');
       final popularMovies = await _tmdbService.getPopularMovies(language: 'vi');
 
       final movies = <Movie>[];
@@ -87,7 +81,7 @@ class MovieImportRepository {
       for (var i = 0; i < limit; i++) {
         try {
           final tmdbId = popularMovies[i]['id'];
-          print('Importing movie ${i + 1}/$limit (TMDB ID: $tmdbId)...');
+          print('Đang nhập phim ${i + 1}/$limit (TMDB ID: $tmdbId)...');
 
           final movie = await importMovieFromTMDB(tmdbId);
 
@@ -96,7 +90,7 @@ class MovieImportRepository {
           // Small delay to avoid rate limiting
           await Future.delayed(const Duration(seconds: 1));
         } catch (e) {
-          print('Failed to import movie ${i + 1}: $e');
+          print('Thất bại khi nhập phim ${i + 1}: $e');
           continue; // Skip failed imports
         }
       }

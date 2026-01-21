@@ -83,7 +83,7 @@ class TMDBService {
 
       return null;
     } catch (e) {
-      print('Error fetching trailer: $e');
+      print('Lỗi khi lấy trailer: $e');
       return null;
     }
   }

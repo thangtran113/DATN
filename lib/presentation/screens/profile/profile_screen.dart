@@ -8,7 +8,7 @@ import '../../widgets/app_footer.dart';
 import '../../../data/repositories/auth_repository.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -57,8 +57,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  Future<bool> _showConfirmationDialog({
+    required String title,
+    required String message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.backgroundCard,
+        title: Text(
+          title,
+          style: const TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text(
+              'Xác nhận',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   Future<void> _saveProfileInfo() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Hiển thị dialog xác nhận
+    final confirmed = await _showConfirmationDialog(
+      title: 'Xác nhận cập nhật',
+      message: 'Bạn có chắc chắn muốn cập nhật thông tin cá nhân?',
+    );
+
+    if (!confirmed) return;
 
     setState(() => _isLoading = true);
 
@@ -80,6 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SnackBar(
             content: Text('Cập nhật thông tin thành công'),
             backgroundColor: AppColors.success,
+            duration: Duration(seconds: 1),
           ),
         );
         setState(() => _hasChanges = false);
@@ -90,6 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -104,6 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(
           content: Text('Vui lòng nhập mật khẩu hiện tại'),
           backgroundColor: AppColors.error,
+          duration: Duration(seconds: 1),
         ),
       );
       return;
@@ -114,6 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(
           content: Text('Mật khẩu mới không khớp'),
           backgroundColor: AppColors.error,
+          duration: Duration(seconds: 1),
         ),
       );
       return;
@@ -124,10 +174,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(
           content: Text('Mật khẩu phải có ít nhất 8 ký tự'),
           backgroundColor: AppColors.error,
+          duration: Duration(seconds: 1),
         ),
       );
       return;
     }
+
+    // Hiển thị dialog xác nhận
+    final confirmed = await _showConfirmationDialog(
+      title: 'Xác nhận đổi mật khẩu',
+      message: 'Bạn có chắc chắn muốn đổi mật khẩu?',
+    );
+
+    if (!confirmed) return;
 
     setState(() => _isLoading = true);
 
@@ -146,6 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SnackBar(
             content: Text('Đổi mật khẩu thành công'),
             backgroundColor: AppColors.success,
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -155,6 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -165,6 +226,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
+    // Yêu cầu đăng nhập để truy cập hồ sơ
+    if (authProvider.user == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Column(
+          children: [
+            const AppHeader(),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.person_outline,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Vui lòng đăng nhập để xem tài khoản',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.go('/login'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00BCD4),
+                      ),
+                      child: const Text('Đăng nhập'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -208,6 +310,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               index: _activeTab == 'info' ? 0 : 1,
                               children: [_buildInfoTab(), _buildPasswordTab()],
                             ),
+
+                            const SizedBox(height: 48),
+
+                            // Danger Zone
+                            _buildDangerZone(),
                           ],
                         ),
                       ),
@@ -594,5 +701,193 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildDangerZone() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Vùng Nguy Hiểm',
+            style: TextStyle(
+              color: AppColors.error,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Xóa tài khoản sẽ xóa vĩnh viễn tất cả dữ liệu của bạn bao gồm lịch sử học tập, từ vựng đã lưu, và danh sách yêu thích. Hành động này không thể hoàn tác.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _confirmDeleteAccount,
+            icon: const Icon(Icons.delete_forever),
+            label: const Text('Xóa Tài Khoản'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    // First dialog: Xác nhận lần 1
+    final firstConfirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.backgroundCard,
+        title: const Text(
+          'Xóa tài khoản?',
+          style: TextStyle(color: AppColors.error),
+        ),
+        content: const Text(
+          'Bạn có chắc chắn muốn xóa tài khoản? Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn và không thể khôi phục.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text(
+              'Tiếp tục',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (firstConfirm != true) return;
+
+    // Second dialog: Nhập mật khẩu để xác nhận
+    final passwordController = TextEditingController();
+    final secondConfirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.backgroundCard,
+        title: const Text(
+          'Xác nhận mật khẩu',
+          style: TextStyle(color: AppColors.error),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Nhập mật khẩu của bạn để xác nhận xóa tài khoản:',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              autofocus: true,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Mật khẩu',
+                hintStyle: TextStyle(
+                  color: AppColors.textSecondary.withOpacity(0.5),
+                ),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.all(16),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              passwordController.dispose();
+              Navigator.pop(context, false);
+            },
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (passwordController.text.isNotEmpty) {
+                Navigator.pop(context, true);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text(
+              'Xóa Tài Khoản',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (secondConfirm != true || passwordController.text.isEmpty) {
+      passwordController.dispose();
+      return;
+    }
+
+    // Thực hiện xóa tài khoản
+    setState(() => _isLoading = true);
+
+    try {
+      final authRepo = AuthRepository();
+      await authRepo.deleteAccount(currentPassword: passwordController.text);
+      passwordController.dispose();
+
+      if (mounted) {
+        // Đăng xuất và chuyển về trang login
+        await context.read<AuthProvider>().signOut();
+        context.go('/login');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tài khoản đã được xóa thành công'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      passwordController.dispose();
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    }
   }
 }

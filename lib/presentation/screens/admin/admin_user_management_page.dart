@@ -4,7 +4,7 @@ import '../../providers/admin_user_provider.dart';
 import '../../providers/auth_provider.dart';
 
 class AdminUserManagementPage extends StatefulWidget {
-  const AdminUserManagementPage({Key? key}) : super(key: key);
+  const AdminUserManagementPage({super.key});
 
   @override
   State<AdminUserManagementPage> createState() =>

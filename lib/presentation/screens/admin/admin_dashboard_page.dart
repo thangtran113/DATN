@@ -6,7 +6,7 @@ import '../../providers/admin_user_provider.dart';
 import '../../providers/auth_provider.dart';
 
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({Key? key}) : super(key: key);
+  const AdminDashboardPage({super.key});
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
@@ -36,7 +36,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
 
-    // Check admin permission
+    // Kiểm tra quyền quản trị
     // TODO: Re-enable admin check after testing
     if (false) {
       // Temporarily disabled: user == null || !user.isAdmin

@@ -10,6 +10,7 @@
 /// 00:00:05,000 --> 00:00:08,000
 /// Second subtitle
 /// ```
+library;
 
 import '../domain/entities/subtitle.dart';
 
@@ -22,7 +23,7 @@ class SrtParser {
   static List<Subtitle> parse(String srtContent) {
     final subtitles = <Subtitle>[];
 
-    // Split by double newlines (subtitle blocks)
+    // Tách bằng ký tự xuống dòng kép (các khối phụ đề)
     final blocks = srtContent.split(RegExp(r'\n\s*\n'));
 
     for (final block in blocks) {

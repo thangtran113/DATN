@@ -4,15 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
-import 'core/constants/app_strings.dart';
 import 'core/routes/app_router.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/movie_provider.dart';
 import 'presentation/providers/vocabulary_provider.dart';
 import 'presentation/providers/comment_provider.dart';
-import 'presentation/providers/watchlist_provider.dart';
-import 'presentation/providers/watch_history_provider.dart';
-import 'presentation/providers/movie_rating_provider.dart';
 import 'presentation/providers/recommendation_provider.dart';
 import 'presentation/providers/admin_movie_provider.dart';
 import 'presentation/providers/admin_user_provider.dart';
@@ -41,15 +37,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MovieProvider(), lazy: true),
         ChangeNotifierProvider(create: (_) => VocabularyProvider(), lazy: true),
         ChangeNotifierProvider(create: (_) => CommentProvider(), lazy: true),
-        ChangeNotifierProvider(create: (_) => WatchlistProvider(), lazy: true),
-        ChangeNotifierProvider(
-          create: (_) => WatchHistoryProvider(),
-          lazy: true,
-        ),
-        ChangeNotifierProvider(
-          create: (_) => MovieRatingProvider(),
-          lazy: true,
-        ),
         ChangeNotifierProvider(
           create: (_) => RecommendationProvider(),
           lazy: true,
@@ -63,7 +50,7 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp.router(
-        title: AppStrings.appName,
+        title: 'CineChill',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         routerConfig: AppRouter.router,

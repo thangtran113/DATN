@@ -35,6 +35,7 @@ class AdminMovieRepository {
   /// Update an existing movie
   Future<void> updateMovie(Movie movie) async {
     try {
+      print('Repository: Đang cập nhật phim ${movie.id}');
       await _firestore.collection('movies').doc(movie.id).update({
         'title': movie.title,
         'description': movie.description,
@@ -49,10 +50,13 @@ class AdminMovieRepository {
         'year': movie.year,
         'cast': movie.cast,
         'director': movie.director,
+        'country': movie.country,
         'subtitles': movie.subtitles,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      print('Repository: Cập nhật thành công');
     } catch (e) {
+      print('Repository: Cập nhật thất bại: $e');
       throw Exception('Failed to update movie: $e');
     }
   }
@@ -63,55 +67,60 @@ class AdminMovieRepository {
       // Delete movie document
       await _firestore.collection('movies').doc(movieId).delete();
 
-      // Clean up related data (optional - có thể để cascade)
-      // Delete vocabulary for this movie
-      final vocabSnapshot = await _firestore
-          .collection('vocabulary')
-          .where('movieId', isEqualTo: movieId)
-          .get();
+      // Clean up related data (best effort - ignore errors)
+      try {
+        // Delete vocabulary for this movie
+        final vocabSnapshot = await _firestore
+            .collection('vocabulary')
+            .where('movieId', isEqualTo: movieId)
+            .get();
 
-      for (final doc in vocabSnapshot.docs) {
-        await doc.reference.delete();
-      }
+        for (final doc in vocabSnapshot.docs) {
+          await doc.reference.delete().catchError((_) => null);
+        }
 
-      // Delete comments
-      final commentsSnapshot = await _firestore
-          .collection('comments')
-          .where('movieId', isEqualTo: movieId)
-          .get();
+        // Delete comments
+        final commentsSnapshot = await _firestore
+            .collection('comments')
+            .where('movieId', isEqualTo: movieId)
+            .get();
 
-      for (final doc in commentsSnapshot.docs) {
-        await doc.reference.delete();
-      }
+        for (final doc in commentsSnapshot.docs) {
+          await doc.reference.delete().catchError((_) => null);
+        }
 
-      // Delete ratings
-      final ratingsSnapshot = await _firestore
-          .collection('movie_ratings')
-          .where('movieId', isEqualTo: movieId)
-          .get();
+        // Delete ratings
+        final ratingsSnapshot = await _firestore
+            .collection('movie_ratings')
+            .where('movieId', isEqualTo: movieId)
+            .get();
 
-      for (final doc in ratingsSnapshot.docs) {
-        await doc.reference.delete();
-      }
+        for (final doc in ratingsSnapshot.docs) {
+          await doc.reference.delete().catchError((_) => null);
+        }
 
-      // Delete from watchlists
-      final watchlistSnapshot = await _firestore
-          .collection('watchlist')
-          .where('movieId', isEqualTo: movieId)
-          .get();
+        // Delete from watchlists
+        final watchlistSnapshot = await _firestore
+            .collection('watchlist')
+            .where('movieId', isEqualTo: movieId)
+            .get();
 
-      for (final doc in watchlistSnapshot.docs) {
-        await doc.reference.delete();
-      }
+        for (final doc in watchlistSnapshot.docs) {
+          await doc.reference.delete().catchError((_) => null);
+        }
 
-      // Delete from watch history
-      final historySnapshot = await _firestore
-          .collection('watch_history')
-          .where('movieId', isEqualTo: movieId)
-          .get();
+        // Delete from watch history
+        final historySnapshot = await _firestore
+            .collection('watch_history')
+            .where('movieId', isEqualTo: movieId)
+            .get();
 
-      for (final doc in historySnapshot.docs) {
-        await doc.reference.delete();
+        for (final doc in historySnapshot.docs) {
+          await doc.reference.delete().catchError((_) => null);
+        }
+      } catch (cleanupError) {
+        // Ignore cleanup errors - movie is already deleted
+        print('Lỗi dọc dẹp (không nghiêm trọng): $cleanupError');
       }
     } catch (e) {
       throw Exception('Failed to delete movie: $e');
@@ -134,9 +143,11 @@ class AdminMovieRepository {
       }
 
       final snapshot = await query.get();
-      return snapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id; // Ensure document ID is included
+        return Movie.fromJson(data);
+      }).toList();
     } catch (e) {
       throw Exception('Failed to get movies: $e');
     }
@@ -152,9 +163,11 @@ class AdminMovieRepository {
           .limit(20)
           .get();
 
-      return snapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id; // Ensure document ID is included
+        return Movie.fromJson(data);
+      }).toList();
     } catch (e) {
       throw Exception('Failed to search movies: $e');
     }

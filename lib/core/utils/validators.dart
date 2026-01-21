@@ -2,12 +2,12 @@ class Validators {
   // Email Validation
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Email is required';
+      return 'Vui lòng nhập email';
     }
 
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
-      return 'Please enter a valid email';
+      return 'Email không hợp lệ';
     }
 
     return null;
@@ -16,11 +16,11 @@ class Validators {
   // Password Validation
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Password is required';
+      return 'Vui lòng nhập mật khẩu';
     }
 
     if (value.length < 6) {
-      return 'Password must be at least 6 characters';
+      return 'Mật khẩu phải có ít nhất 6 ký tự';
     }
 
     return null;
@@ -29,11 +29,11 @@ class Validators {
   // Confirm Password Validation
   static String? validateConfirmPassword(String? value, String password) {
     if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
+      return 'Vui lòng xác nhận mật khẩu';
     }
 
     if (value != password) {
-      return 'Passwords do not match';
+      return 'Mật khẩu không khớp';
     }
 
     return null;
@@ -42,11 +42,11 @@ class Validators {
   // Name Validation
   static String? validateName(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Name is required';
+      return 'Vui lòng nhập tên';
     }
 
     if (value.length < 2) {
-      return 'Name must be at least 2 characters';
+      return 'Tên phải có ít nhất 2 ký tự';
     }
 
     return null;
@@ -55,21 +55,8 @@ class Validators {
   // Required Field Validation
   static String? validateRequired(String? value, String fieldName) {
     if (value == null || value.isEmpty) {
-      return '$fieldName is required';
+      return '$fieldName là bắt buộc';
     }
-    return null;
-  }
-
-  // Rating Validation
-  static String? validateRating(double? value) {
-    if (value == null) {
-      return 'Please select a rating';
-    }
-
-    if (value < 1 || value > 5) {
-      return 'Rating must be between 1 and 5';
-    }
-
     return null;
   }
 }

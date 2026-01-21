@@ -8,7 +8,6 @@ class MovieProvider with ChangeNotifier {
   List<Movie> _movies = [];
   List<Movie> _popularMovies = [];
   List<Movie> _searchResults = [];
-  List<Movie> _watchlist = [];
   List<Movie> _favorites = [];
   Movie? _selectedMovie;
 
@@ -19,7 +18,6 @@ class MovieProvider with ChangeNotifier {
   List<Movie> get movies => _movies;
   List<Movie> get popularMovies => _popularMovies;
   List<Movie> get searchResults => _searchResults;
-  List<Movie> get watchlist => _watchlist;
   List<Movie> get favorites => _favorites;
   Movie? get selectedMovie => _selectedMovie;
   bool get isLoading => _isLoading;
@@ -53,7 +51,7 @@ class MovieProvider with ChangeNotifier {
 
         // If no new movies, we've reached the end
         if (newMovies.isEmpty) {
-          print('📭 No more movies to load');
+          print('📭Không còn phim nào để tải');
         }
       } else {
         _movies = fetchedMovies;
@@ -61,7 +59,7 @@ class MovieProvider with ChangeNotifier {
       _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString();
-      print('Error fetching movies: $e');
+      print('Lỗi khi tải phim: $e');
     } finally {
       _isLoading = false;
       _isLoadingMore = false;
@@ -75,7 +73,7 @@ class MovieProvider with ChangeNotifier {
       _popularMovies = await _movieRepository.getPopularMovies(limit: 10);
       notifyListeners();
     } catch (e) {
-      print('Error fetching popular movies: $e');
+      print('Lỗi khi tải phim phổ biến: $e');
     }
   }
 
@@ -90,7 +88,7 @@ class MovieProvider with ChangeNotifier {
       _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString();
-      print('Error fetching movie: $e');
+      print('Lỗi khi tải phim: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -111,7 +109,7 @@ class MovieProvider with ChangeNotifier {
     try {
       _searchResults = await _movieRepository.searchMovies(query);
     } catch (e) {
-      print('Error searching movies: $e');
+      print('Lỗi khi tìm kiếm phim: $e');
       _searchResults = [];
     } finally {
       _isLoading = false;
@@ -133,7 +131,7 @@ class MovieProvider with ChangeNotifier {
     try {
       _movies = await _movieRepository.getMoviesByGenre(genre);
     } catch (e) {
-      print('Error filtering by genre: $e');
+      print('Lỗi khi lọc theo thể loại: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -145,7 +143,7 @@ class MovieProvider with ChangeNotifier {
     try {
       return await _movieRepository.getMoviesByGenre(genre, limit: limit);
     } catch (e) {
-      print('Error fetching movies by genre: $e');
+      print('Lỗi khi tải phim theo thể loại: $e');
       return [];
     }
   }
@@ -158,7 +156,7 @@ class MovieProvider with ChangeNotifier {
     try {
       _movies = await _movieRepository.getMoviesByYear(year);
     } catch (e) {
-      print('Error filtering by year: $e');
+      print('Lỗi khi lọc theo năm: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -173,20 +171,10 @@ class MovieProvider with ChangeNotifier {
     try {
       _movies = await _movieRepository.getMoviesByCountry(country);
     } catch (e) {
-      print('Error filtering by country: $e');
+      print('Lỗi khi lọc theo quốc gia: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
-    }
-  }
-
-  // Fetch user's watchlist
-  Future<void> fetchWatchlist(String userId) async {
-    try {
-      _watchlist = await _movieRepository.getUserWatchlist(userId);
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching watchlist: $e');
     }
   }
 
@@ -196,29 +184,7 @@ class MovieProvider with ChangeNotifier {
       _favorites = await _movieRepository.getUserFavorites(userId);
       notifyListeners();
     } catch (e) {
-      print('Error fetching favorites: $e');
-    }
-  }
-
-  // Add to watchlist
-  Future<void> addToWatchlist(String userId, String movieId) async {
-    try {
-      await _movieRepository.addToWatchlist(userId, movieId);
-      await fetchWatchlist(userId);
-    } catch (e) {
-      print('Error adding to watchlist: $e');
-      rethrow;
-    }
-  }
-
-  // Remove from watchlist
-  Future<void> removeFromWatchlist(String userId, String movieId) async {
-    try {
-      await _movieRepository.removeFromWatchlist(userId, movieId);
-      await fetchWatchlist(userId);
-    } catch (e) {
-      print('Error removing from watchlist: $e');
-      rethrow;
+      print('Lỗi khi tải danh sách yêu thích: $e');
     }
   }
 
@@ -228,7 +194,7 @@ class MovieProvider with ChangeNotifier {
       await _movieRepository.addToFavorites(userId, movieId);
       await fetchFavorites(userId);
     } catch (e) {
-      print('Error adding to favorites: $e');
+      print('Lỗi khi thêm vào yêu thích: $e');
       rethrow;
     }
   }
@@ -239,14 +205,9 @@ class MovieProvider with ChangeNotifier {
       await _movieRepository.removeFromFavorites(userId, movieId);
       await fetchFavorites(userId);
     } catch (e) {
-      print('Error removing from favorites: $e');
+      print('Lỗi khi xóa khỏi yêu thích: $e');
       rethrow;
     }
-  }
-
-  // Check if movie is in watchlist
-  bool isInWatchlist(String movieId) {
-    return _watchlist.any((movie) => movie.id == movieId);
   }
 
   // Check if movie is in favorites

@@ -57,18 +57,22 @@ class VocabularyProvider extends ChangeNotifier {
   }
 
   /// Lưu một từ mới
-  Future<bool> saveWord(SavedWord word) async {
+  /// Returns: Map với keys 'isNew' (bool) và 'id' (string)
+  Future<Map<String, dynamic>> saveWord(SavedWord word) async {
     try {
-      await _repository.saveWord(word);
+      final result = await _repository.saveWord(word);
 
-      // Reload vocabulary sau khi lưu
-      await loadVocabulary(word.userId);
-      return true;
+      // Reload vocabulary sau khi lưu (chỉ khi là từ mới)
+      if (result['isNew'] == true) {
+        await loadVocabulary(word.userId);
+      }
+
+      return result;
     } catch (e) {
       _error = e.toString();
       print('❌ Lỗi khi lưu từ: $e');
       notifyListeners();
-      return false;
+      return {'isNew': false, 'id': '', 'error': e.toString()};
     }
   }
 

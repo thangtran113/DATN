@@ -36,8 +36,7 @@
         "translator",
         "url_launcher",
         "video_player",
-        "web",
-        "youtube_player_iframe"
+        "web"
       ],
       "devDependencies": [
         "build_runner",
@@ -263,19 +262,6 @@
         "flutter_web_plugins",
         "logging",
         "meta"
-      ]
-    },
-    {
-      "name": "youtube_player_iframe",
-      "version": "5.2.2",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "url_launcher",
-        "webview_flutter",
-        "webview_flutter_android",
-        "webview_flutter_wkwebview",
-        "youtube_player_iframe_web"
       ]
     },
     {
@@ -719,7 +705,7 @@
     },
     {
       "name": "crypto",
-      "version": "3.0.6",
+      "version": "3.0.7",
       "dependencies": [
         "typed_data"
       ]
@@ -1031,45 +1017,6 @@
         "source_span",
         "string_scanner",
         "typed_data"
-      ]
-    },
-    {
-      "name": "youtube_player_iframe_web",
-      "version": "3.1.2",
-      "dependencies": [
-        "flutter",
-        "flutter_web_plugins",
-        "web",
-        "webview_flutter_platform_interface"
-      ]
-    },
-    {
-      "name": "webview_flutter_wkwebview",
-      "version": "3.23.2",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "path",
-        "webview_flutter_platform_interface"
-      ]
-    },
-    {
-      "name": "webview_flutter_android",
-      "version": "4.10.5",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "webview_flutter_platform_interface"
-      ]
-    },
-    {
-      "name": "webview_flutter",
-      "version": "4.13.0",
-      "dependencies": [
-        "flutter",
-        "webview_flutter_android",
-        "webview_flutter_platform_interface",
-        "webview_flutter_wkwebview"
       ]
     },
     {
@@ -1552,15 +1499,6 @@
         "path",
         "path_provider_platform_interface",
         "xdg_directories"
-      ]
-    },
-    {
-      "name": "webview_flutter_platform_interface",
-      "version": "2.14.0",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "plugin_platform_interface"
       ]
     },
     {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -18,7 +19,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/subtitle_display.dart';
 import '../../widgets/dictionary_popup.dart';
 
-// Fullscreen cho Web sử dụng package:web (thay thế dart:html đã lỗi thời)
+// Toàn màn hình cho Web sử dụng package:web (thay thế dart:html đã lỗi thời)
 import 'package:web/web.dart' as web;
 
 class VideoPlayerScreen extends StatefulWidget {
@@ -40,6 +41,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isTogglingFullscreen = false;
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
+  final ValueNotifier<Duration> _positionNotifier = ValueNotifier(
+    Duration.zero,
+  );
   Timer? _hideControlsTimer;
   Timer? _syncTimer;
   late FocusNode _focusNode;
@@ -47,6 +51,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   // Phụ đề
   List<Subtitle> _subtitles = [];
   Subtitle? _currentSubtitle;
+  Duration? _currentSubtitleStartTime; // Track startTime thay vì index
   final bool _showSubtitles = true;
   bool _showSubtitleList = false; // 🆕 Show/hide subtitle list panel
   final _subtitleRepository = SubtitleRepository();
@@ -67,12 +72,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   // 🆕 Bookmarked sentences
   final List<Subtitle> _bookmarkedSubtitles = [];
 
+  // Movie data
+  Movie? _currentMovie;
+
   @override
   void initState() {
     super.initState();
     _focusNode = FocusNode();
 
-    // Lắng nghe thay đổi chế độ fullscreen trên web (ví dụ: khi người dùng nhấn ESC)
+    // Lắng nghe thay đổi chế độ toàn màn hình trên web (ví dụ: khi người dùng nhấn ESC)
     if (kIsWeb) {
       web.document.onfullscreenchange = (web.Event event) {
         // Chỉ cập nhật nếu không đang chuyển đổi (tránh setState hai lần)
@@ -91,23 +99,58 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
   }
 
+  @override
+  void didUpdateWidget(VideoPlayerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Chỉ tải lại nếu movieId thay đổi
+    if (oldWidget.movieId != widget.movieId) {
+      _disposeVideoController();
+      _loadMovie();
+    }
+  }
+
+  void _disposeVideoController() {
+    _hideControlsTimer?.cancel();
+    _syncTimer?.cancel();
+    _videoController?.pause();
+    _videoController?.dispose();
+    _videoController = null;
+  }
+
   Future<void> _loadMovie() async {
     print('🎬 Loading movie: ${widget.movieId}');
+    print(
+      '🎬 Current controller status: ${_videoController != null ? "exists" : "null"}',
+    );
+
     final movieProvider = Provider.of<MovieProvider>(context, listen: false);
     await movieProvider.fetchMovieById(widget.movieId);
 
     final movie = movieProvider.selectedMovie;
-    print('🎬 Movie loaded: ${movie?.title}');
-    print('🎬 Video URL: ${movie?.videoUrl}');
+    print('🎬 Phim đã tải: ${movie?.title}');
+    print('🎬 URL Video: ${movie?.videoUrl}');
 
-    if (movie != null && movie.videoUrl != null && movie.videoUrl!.isNotEmpty) {
-      print('🎬 Initializing video player with URL: ${movie.videoUrl}');
-      _initializeVideoPlayer(movie.videoUrl!);
+    if (movie != null) {
+      setState(() {
+        _currentMovie = movie;
+      });
 
-      // Tải phụ đề
-      _loadSubtitles(movie);
-    } else {
-      print('❌ No video URL found for movie');
+      if (movie.videoUrl != null && movie.videoUrl!.isNotEmpty) {
+        // Chỉ khởi tạo trình phát video nếu chưa có hoặc URL thay đổi
+        if (_videoController == null) {
+          print('🎬 Đang khởi tạo trình phát video với URL: ${movie.videoUrl}');
+          _initializeVideoPlayer(movie.videoUrl!);
+
+          // Tải phụ đề
+          _loadSubtitles(movie);
+        } else {
+          print('✅ Bộ điều khiển video đã tồn tại, bỏ qua khởi tạo');
+        }
+      }
+    }
+
+    if (movie == null || movie.videoUrl == null || movie.videoUrl!.isEmpty) {
+      print('❌ Không tìm thấy URL video cho phim');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -126,36 +169,36 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       // Kiểm tra xem phim có URL phụ đề không
       if (movie.subtitles != null && movie.subtitles!.isNotEmpty) {
-        print('📝 Loading subtitles from URL...');
-        print('📝 Subtitles map: ${movie.subtitles}');
+        print('📝 Đang tải phụ đề từ URL...');
+        print('📝 Bản đồ phụ đề: ${movie.subtitles}');
 
         // Kiểm tra phụ đề song ngữ (en + vi)
         final enUrl = movie.subtitles!['en'] as String?;
         final viUrl = movie.subtitles!['vi'] as String?;
 
-        print('📝 EN URL: $enUrl');
-        print('📝 VI URL: $viUrl');
+        print('📝 URL tiếng Anh: $enUrl');
+        print('📝 URL tiếng Việt: $viUrl');
 
         if (enUrl != null && viUrl != null) {
-          print('📝 Loading bilingual subtitles from URLs...');
+          print('📝 Đang tải phụ đề song ngữ từ URL...');
           // Tải phụ đề song ngữ
           final subtitles = await _subtitleRepository.loadBilingualFromUrls(
             englishUrl: enUrl,
             vietnameseUrl: viUrl,
           );
 
-          print('📝 Loaded ${subtitles.length} subtitle entries');
+          print('📝 Đã tải ${subtitles.length} mục phụ đề');
 
           if (mounted && subtitles.isNotEmpty) {
             setState(() {
               _subtitles = subtitles;
-              print('✅ Loaded ${subtitles.length} bilingual subtitles');
+              print('✅ Đã tải ${subtitles.length} phụ đề song ngữ');
               print(
-                '📝 First subtitle: ${subtitles.first.textEn} at ${subtitles.first.startTime}',
+                '📝 Phụ đề đầu tiên: ${subtitles.first.textEn} tại ${subtitles.first.startTime}',
               );
             });
           } else {
-            print('⚠️ Subtitle list is empty after loading!');
+            print('⚠️ Danh sách phụ đề trống sau khi tải!');
           }
         } else if (enUrl != null) {
           // Tải file phụ đề đơn (một ngôn ngữ hoặc song ngữ trong một file)
@@ -164,12 +207,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           if (mounted && subtitles.isNotEmpty) {
             setState(() {
               _subtitles = subtitles;
-              print('✅ Loaded ${subtitles.length} subtitles');
+              print('✅ Đã tải ${subtitles.length} phụ đề');
             });
           }
         }
       } else {
-        print('⚠️ No subtitle URL found');
+        print('⚠️ Không tìm thấy URL phụ đề');
       }
     } catch (e) {
       print('❌ Lỗi tải phụ đề: $e');
@@ -178,63 +221,101 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _initializeVideoPlayer(String videoUrl) async {
     try {
-      print('🎥 Creating VideoPlayerController...');
-      _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+      print('🎥 Đang tạo VideoPlayerController...');
 
-      print('🎥 Initializing video player...');
+      // Chuẩn hóa dấu gạch chéo ngược thành dấu gạch chéo xuôi để tương thích
+      final normalizedUrl = videoUrl.replaceAll('\\', '/');
+      print('🔄 URL chuẩn hóa: $normalizedUrl');
+
+      // Kiểm tra nếu là video nội bộ (development)
+      if (normalizedUrl.startsWith('assets/')) {
+        print('📁 Đã phát hiện video nội bộ: $normalizedUrl');
+
+        if (kIsWeb) {
+          // Web: Thêm dấu gạch chéo đầu cho đường dẫn tuyệt đối
+          final webPath = '/$normalizedUrl';
+
+          print('🌐 Đường dẫn web: $webPath');
+
+          _videoController = VideoPlayerController.networkUrl(
+            Uri.parse(webPath),
+            httpHeaders: {'Access-Control-Allow-Origin': '*'},
+          );
+        } else {
+          // Mobile/Desktop: Sử dụng bộ điều khiển asset
+          print('📱 Mobile: Tải dưới dạng asset');
+          _videoController = VideoPlayerController.asset(normalizedUrl);
+        }
+      } else {
+        // Video mạng (Firebase Storage, URL trực tiếp, v.v.)
+        print('🌐 Video mạng: $normalizedUrl');
+
+        // Đối với web, thêm headers CORS
+        final headers = kIsWeb
+            ? {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, HEAD',
+              }
+            : <String, String>{};
+
+        _videoController = VideoPlayerController.networkUrl(
+          Uri.parse(normalizedUrl),
+          httpHeaders: headers,
+        );
+      }
+
+      print('🎥 Đang khởi tạo trình phát video...');
       await _videoController!.initialize();
 
       print(
         '✅ Video initialized! Duration: ${_videoController!.value.duration}',
       );
 
-      setState(() {
-        _totalDuration = _videoController!.value.duration;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _totalDuration = _videoController!.value.duration;
+          _isLoading = false;
+        });
+      }
 
+      // Lắng nghe cập nhật vị trí VÀ phụ đề
       _videoController!.addListener(() {
-        if (mounted && !_isSeeking) {
-          setState(() {
-            _currentPosition = _videoController!.value.position;
-            // Không đồng bộ _isPlaying từ controller để tránh xung đột
-            // Chỉ cập nhật vị trí cho thanh tiến trình
-          });
-        }
-      });
+        if (!_isSeeking && _videoController != null) {
+          final currentPos = _videoController!.value.position;
+          _currentPosition = currentPos;
+          _positionNotifier.value = currentPos; // Chỉ rebuild slider
 
-      _videoController!.play();
-      setState(() => _isPlaying = true);
-      _startHideControlsTimer();
-
-      // Đồng bộ định kỳ để đảm bảo UI khớp với trạng thái video
-      _syncTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-        if (mounted && _videoController != null) {
-          final actuallyPlaying = _videoController!.value.isPlaying;
-          if (_isPlaying != actuallyPlaying) {
-            setState(() => _isPlaying = actuallyPlaying);
-          }
-
-          // Cập nhật phụ đề hiện tại
+          // Kiểm tra phụ đề ngay khi vị trí thay đổi
           Subtitle? newSubtitle;
           for (final subtitle in _subtitles) {
-            if (subtitle.isActiveAt(_currentPosition)) {
+            if (subtitle.isActiveAt(currentPos)) {
               newSubtitle = subtitle;
               break;
             }
           }
-          if (_currentSubtitle != newSubtitle) {
-            setState(() => _currentSubtitle = newSubtitle);
-            if (newSubtitle != null) {
-              print('📝 Subtitle updated: ${newSubtitle.textEn}');
-            }
+
+          // So sánh bằng startTime để không bỏ sót phụ đề nào
+          final newStartTime = newSubtitle?.startTime;
+          if (mounted && _currentSubtitleStartTime != newStartTime) {
+            _currentSubtitle = newSubtitle;
+            _currentSubtitleStartTime = newStartTime;
+            // setState trong Future.microtask để tránh setState trong build
+            Future.microtask(() {
+              if (mounted) setState(() {});
+            });
           }
         }
       });
 
-      print('▶️ Video playing');
+      if (mounted) {
+        _videoController!.play();
+        setState(() => _isPlaying = true);
+        _startHideControlsTimer();
+      }
+
+      print('▶️ Video đang phát');
     } catch (e) {
-      print('❌ Error initializing video: $e');
+      print('❌ Lỗi khởi tạo video: $e');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -268,10 +349,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   void dispose() {
-    _hideControlsTimer?.cancel();
-    _syncTimer?.cancel();
-    _videoController?.dispose();
+    _disposeVideoController();
     _focusNode.dispose();
+    _positionNotifier.dispose();
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -394,25 +474,40 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _seekTo(Duration position) {
-    _videoController?.seekTo(position);
-    setState(() => _currentPosition = position);
+    if (_videoController == null) return;
+
+    // Đảm bảo position hợp lệ
+    final clampedPosition = position < Duration.zero
+        ? Duration.zero
+        : (position > _totalDuration ? _totalDuration : position);
+
+    setState(() {
+      _isSeeking = true;
+      _currentPosition = clampedPosition;
+    });
+
+    _videoController!.seekTo(clampedPosition).then((_) {
+      if (mounted) {
+        setState(() => _isSeeking = false);
+      }
+    });
   }
 
   void _skipBackward() {
     if (_videoController == null) return;
     final newPosition = _currentPosition - const Duration(seconds: 10);
-    _seekTo(newPosition < Duration.zero ? Duration.zero : newPosition);
+    _seekTo(newPosition);
   }
 
   void _skipForward() {
     if (_videoController == null) return;
     final newPosition = _currentPosition + const Duration(seconds: 10);
-    _seekTo(newPosition > _totalDuration ? _totalDuration : newPosition);
+    _seekTo(newPosition);
   }
 
   void _toggleFullscreen() {
-    print('🔲 Toggle fullscreen: $_isFullscreen -> ${!_isFullscreen}');
-    print('🎵 Video is playing BEFORE: ${_videoController?.value.isPlaying}');
+    print('🔲 Chuyển đổi toàn màn hình: $_isFullscreen -> ${!_isFullscreen}');
+    print('🎵 Video đang phát TRƯỚC: ${_videoController?.value.isPlaying}');
 
     // Ghi nhớ xem video có đang phát không
     final wasPlaying = _videoController?.value.isPlaying ?? false;
@@ -423,10 +518,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
       try {
         if (!_isFullscreen) {
-          // Vào chế độ fullscreen
+          // Vào chế độ toàn màn hình
           web.document.documentElement?.requestFullscreen();
         } else {
-          // Thoát chế độ fullscreen
+          // Thoát chế độ toàn màn hình
           web.document.exitFullscreen();
         }
 
@@ -457,7 +552,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         });
       } catch (e) {
         _isTogglingFullscreen = false;
-        print('Fullscreen error: $e');
+        print('Lỗi toàn màn hình: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Fullscreen không được hỗ trợ'),
@@ -503,7 +598,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// Handle word tap from subtitle
   Future<void> _onWordTap(String word) async {
-    print('📖 Word tapped: $word');
+    print('📖 Từ đã nhấn: $word');
 
     // Tạm dừng video để người dùng đọc định nghĩa
     if (_videoController != null && _isPlaying) {
@@ -511,7 +606,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       setState(() => _isPlaying = false);
     }
 
-    // Hiển thị loading
+    // Hiển thị đang tải
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -537,8 +632,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           isScrollControlled: true,
           builder: (context) => DictionaryPopup(
             wordDefinition: definition,
-            onSaveWord: () {
-              _saveWordToVocabulary(definition.word);
+            onSaveWord: (vietnameseMeaning) {
+              _saveWordToVocabulary(definition.word, vietnameseMeaning);
             },
           ),
         );
@@ -558,35 +653,48 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   /// Lưu từ vào danh sách từ vựng với Firestore
-  Future<void> _saveWordToVocabulary(String word) async {
+  Future<void> _saveWordToVocabulary(
+    String word,
+    String vietnameseMeaning,
+  ) async {
+    ScaffoldMessengerState? scaffoldMessenger;
+    if (mounted) {
+      scaffoldMessenger = ScaffoldMessenger.of(context);
+    }
+
     try {
       final authProvider = context.read<AuthProvider>();
       final vocabularyProvider = context.read<VocabularyProvider>();
-      final movieProvider = context.read<MovieProvider>();
 
       if (authProvider.user == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Vui lòng đăng nhập để lưu từ vựng'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+        scaffoldMessenger?.showSnackBar(
+          const SnackBar(
+            content: Text('Vui lòng đăng nhập để lưu từ vựng'),
+            backgroundColor: Colors.orange,
+          ),
+        );
         return;
       }
+
+      // Hiện snackbar "đang lưu..."
+      scaffoldMessenger?.showSnackBar(
+        SnackBar(
+          content: Text('Đang lưu từ "$word"...'),
+          duration: const Duration(seconds: 1),
+          backgroundColor: Colors.blue,
+        ),
+      );
 
       // Lấy định nghĩa từ
       final definition = await _dictionaryService.lookupWord(word);
       if (definition == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Không tìm thấy định nghĩa cho từ "$word"'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        scaffoldMessenger?.hideCurrentSnackBar();
+        scaffoldMessenger?.showSnackBar(
+          SnackBar(
+            content: Text('Không tìm thấy định nghĩa cho từ "$word"'),
+            backgroundColor: Colors.red,
+          ),
+        );
         return;
       }
 
@@ -601,78 +709,68 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ? firstMeaning!.definitions.first.example
           : null;
 
-      // Dịch nghĩa sang tiếng Việt
-      String? vietnameseMeaning;
-      try {
-        vietnameseMeaning = await _translationService.translateDefinition(
-          meaningText,
-        );
-        if (vietnameseMeaning != null) {
-          print('✅ Đã dịch sang tiếng Việt: $vietnameseMeaning');
-        }
-      } catch (e) {
-        print('⚠️ Không thể dịch sang tiếng Việt: $e');
-        // Tiếp tục lưu từ ngay cả khi không dịch được
-      }
-
-      // Tạo SavedWord
+      // Tạo SavedWord với vietnameseMeaning đã được dịch từ popup
       final savedWord = SavedWord(
         id: '', // Firestore sẽ tự tạo ID
         userId: authProvider.user!.id,
         word: definition.word,
         meaning: meaningText,
-        vietnameseMeaning: vietnameseMeaning,
+        vietnameseMeaning: vietnameseMeaning.isNotEmpty
+            ? vietnameseMeaning
+            : null,
         pronunciation: definition.phonetic,
         example: example,
-        movieId: widget.movieId,
-        movieTitle: movieProvider.selectedMovie?.title,
-        timestamp: _videoController?.value.position.inMilliseconds,
         createdAt: DateTime.now(),
         masteryLevel: 0, // Chưa học
         reviewCount: 0,
       );
 
-      // Lưu vào Firestore
-      final success = await vocabularyProvider.saveWord(savedWord);
+      // Lưu vào Firestore và kiểm tra kết quả
+      final result = await vocabularyProvider.saveWord(savedWord);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      // Ẩn snackbar "đang lưu..." và hiện kết quả
+      scaffoldMessenger?.hideCurrentSnackBar();
+      
+      if (result['isNew'] == true) {
+        scaffoldMessenger?.showSnackBar(
           SnackBar(
-            content: Text(
-              success
-                  ? 'Đã lưu từ "${definition.word}" vào từ vựng!'
-                  : 'Lỗi khi lưu từ vựng',
-            ),
-            backgroundColor: success ? Colors.green : Colors.red,
-            duration: const Duration(seconds: 1),
+            content: Text('Đã lưu từ "${definition.word}" vào từ vựng!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        scaffoldMessenger?.showSnackBar(
+          SnackBar(
+            content: Text('Từ "${definition.word}" đã được lưu từ trước'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
       print('❌ Lỗi khi lưu từ: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
-        );
-      }
+      scaffoldMessenger?.hideCurrentSnackBar();
+      scaffoldMessenger?.showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    print('🔄 VideoPlayerScreen build được gọi');
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Consumer<MovieProvider>(
-        builder: (context, movieProvider, child) {
-          if (_isLoading) {
-            return const Center(
+      body: _isLoading
+          ? const Center(
               child: CircularProgressIndicator(color: Color(0xFFE50914)),
-            );
-          }
-
-          final movie = movieProvider.selectedMovie;
-          if (movie == null) {
-            return Center(
+            )
+          : _currentMovie == null
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -692,12 +790,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ],
               ),
-            );
-          }
-
-          return _buildNetflixPlayer(movie);
-        },
-      ),
+            )
+          : _buildNetflixPlayer(_currentMovie!),
     );
   }
 
@@ -723,11 +817,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             setState(() => _showControls = true);
             _startHideControlsTimer();
           }
-          // Phím F - Bật/tắt fullscreen
+          // Phím F - Bật/tắt toàn màn hình
           else if (event.logicalKey == LogicalKeyboardKey.keyF) {
             _toggleFullscreen();
           }
-          // Phím Escape - Thoát fullscreen
+          // Phím Escape - Thoát toàn màn hình
           else if (event.logicalKey == LogicalKeyboardKey.escape) {
             if (_isFullscreen) {
               _toggleFullscreen();
@@ -748,7 +842,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             color: Colors.black,
             child: Stack(
               children: [
-                // Trình phát video (Một instance duy nhất, không rebuild)
+                // Trình phát video
                 Center(
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
@@ -828,7 +922,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                 color: Colors.white,
                                 size: 28,
                               ),
-                              onPressed: () => Navigator.of(context).pop(),
+                              onPressed: () =>
+                                  context.go('/home/${widget.movieId}'),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -923,12 +1018,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ),
                   ),
 
-                // Phụ đề - Luôn hiển thị (độc lập với điều khiển)
+                // Phụ đề - Luôn hiển thị
                 if (_showSubtitles && _currentSubtitle != null)
                   Positioned(
-                    bottom: _showControls
-                        ? 120
-                        : 40, // Position higher when controls are shown
+                    bottom: _showControls ? 120 : 40,
                     left: 0,
                     right: 0,
                     child: SafeArea(
@@ -941,7 +1034,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           currentSubtitle: _currentSubtitle,
                           showVietnamese: true,
                           fontSize: 28,
-                          onWordTap: _onWordTap, // Enable word clicking
+                          onWordTap: _onWordTap,
                         ),
                       ),
                     ),
@@ -957,47 +1050,55 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Thanh tiến trình
+                          // Thanh tiến trình - Wrap trong ValueListenableBuilder
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: SliderTheme(
-                              data: SliderThemeData(
-                                trackHeight: 3,
-                                thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 6,
-                                ),
-                                overlayShape: const RoundSliderOverlayShape(
-                                  overlayRadius: 14,
-                                ),
-                                activeTrackColor: AppColors.accent,
-                                inactiveTrackColor: Colors.white.withValues(
-                                  alpha: 0.3,
-                                ),
-                                thumbColor: AppColors.accent,
-                                overlayColor: const Color(
-                                  0xFFE50914,
-                                ).withValues(alpha: 0.3),
-                              ),
-                              child: Slider(
-                                value: _currentPosition.inSeconds.toDouble(),
-                                max: _totalDuration.inSeconds.toDouble(),
-                                onChangeStart: (value) {
-                                  setState(() => _isSeeking = true);
-                                  _hideControlsTimer?.cancel();
-                                },
-                                onChanged: (value) {
-                                  setState(() {
-                                    _currentPosition = Duration(
-                                      seconds: value.toInt(),
-                                    );
-                                  });
-                                },
-                                onChangeEnd: (value) {
-                                  _seekTo(Duration(seconds: value.toInt()));
-                                  setState(() => _isSeeking = false);
-                                  _startHideControlsTimer();
-                                },
-                              ),
+                            child: ValueListenableBuilder<Duration>(
+                              valueListenable: _positionNotifier,
+                              builder: (context, position, child) {
+                                return SliderTheme(
+                                  data: SliderThemeData(
+                                    trackHeight: 3,
+                                    thumbShape: const RoundSliderThumbShape(
+                                      enabledThumbRadius: 6,
+                                    ),
+                                    overlayShape: const RoundSliderOverlayShape(
+                                      overlayRadius: 14,
+                                    ),
+                                    activeTrackColor: AppColors.accent,
+                                    inactiveTrackColor: Colors.white.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    thumbColor: AppColors.accent,
+                                    overlayColor: const Color(
+                                      0xFFE50914,
+                                    ).withValues(alpha: 0.3),
+                                  ),
+                                  child: Slider(
+                                    value: _isSeeking
+                                        ? _currentPosition.inSeconds.toDouble()
+                                        : position.inSeconds.toDouble(),
+                                    max: _totalDuration.inSeconds.toDouble(),
+                                    onChangeStart: (value) {
+                                      setState(() => _isSeeking = true);
+                                      _hideControlsTimer?.cancel();
+                                    },
+                                    onChanged: (value) {
+                                      // Chỉ cập nhật biến, KHÔNG setState
+                                      _currentPosition = Duration(
+                                        seconds: value.toInt(),
+                                      );
+                                      _positionNotifier.value =
+                                          _currentPosition;
+                                    },
+                                    onChangeEnd: (value) {
+                                      _seekTo(Duration(seconds: value.toInt()));
+                                      setState(() => _isSeeking = false);
+                                      _startHideControlsTimer();
+                                    },
+                                  ),
+                                );
+                              },
                             ),
                           ),
 
@@ -1010,15 +1111,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                // Thời gian
+                                // Thời gian - Wrap trong ValueListenableBuilder
                                 Expanded(
-                                  child: Text(
-                                    '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                  child: ValueListenableBuilder<Duration>(
+                                    valueListenable: _positionNotifier,
+                                    builder: (context, position, child) {
+                                      return Text(
+                                        '${_formatDuration(position)} / ${_formatDuration(_totalDuration)}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
 

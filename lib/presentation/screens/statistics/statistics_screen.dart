@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
+import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_animations.dart';
 import '../../providers/vocabulary_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../../domain/entities/saved_word.dart';
+import '../../widgets/app_header.dart';
+import '../../widgets/app_footer.dart';
 
 /// Màn hình thống kê học tập
 class StatisticsScreen extends StatefulWidget {
-  const StatisticsScreen({Key? key}) : super(key: key);
+  const StatisticsScreen({super.key});
 
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
@@ -33,81 +37,158 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF141414),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Thống Kê Học Tập'),
-        centerTitle: true,
-      ),
-      body: Consumer<VocabularyProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFE50914)),
-            );
-          }
+    final authProvider = context.watch<AuthProvider>();
 
-          return RefreshIndicator(
-            onRefresh: _loadData,
-            color: const Color(0xFFE50914),
-            backgroundColor: const Color(0xFF1E1E1E),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Overview cards with animation
-                  FadeInWidget(
-                    duration: const Duration(milliseconds: 500),
-                    child: _buildOverviewCards(provider),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Mastery level distribution
-                  SlideInFromBottom(
-                    delay: const Duration(milliseconds: 200),
-                    child: _buildSectionTitle('Phân Bố Trình Độ'),
-                  ),
-                  const SizedBox(height: 16),
-                  SlideInFromBottom(
-                    delay: const Duration(milliseconds: 300),
-                    child: _buildMasteryDistribution(provider),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Progress chart
-                  SlideInFromBottom(
-                    delay: const Duration(milliseconds: 400),
-                    child: _buildSectionTitle('Tiến Độ Học Tập'),
-                  ),
-                  const SizedBox(height: 16),
-                  SlideInFromBottom(
-                    delay: const Duration(milliseconds: 500),
-                    child: _buildProgressChart(provider),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Learning insights
-                  SlideInFromBottom(
-                    delay: const Duration(milliseconds: 600),
-                    child: _buildSectionTitle('Thông Tin Chi Tiết'),
-                  ),
-                  const SizedBox(height: 16),
-                  SlideInFromBottom(
-                    delay: const Duration(milliseconds: 700),
-                    child: _buildInsights(provider),
-                  ),
-                ],
+    // Yêu cầu đăng nhập để truy cập thống kê
+    if (authProvider.user == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Column(
+          children: [
+            const AppHeader(),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.bar_chart,
+                      size: 64,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Vui lòng đăng nhập để xem thống kê',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.go('/login'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                      ),
+                      child: const Text('Đăng nhập'),
+                    ),
+                  ],
+                ),
               ),
             ),
-          );
-        },
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          const AppHeader(),
+          Expanded(
+            child: Consumer<VocabularyProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.accent),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _loadData,
+                  color: AppColors.accent,
+                  backgroundColor: AppColors.backgroundCard,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: MediaQuery.of(context).size.height - 200,
+                          ),
+                          child: Center(
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 1200),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 40,
+                                horizontal: 16,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Title
+                                  const Text(
+                                    'Thống Kê Học Tập',
+                                    style: TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 32),
+
+                                  // Overview cards with animation
+                                  FadeInWidget(
+                                    duration: const Duration(milliseconds: 500),
+                                    child: _buildOverviewCards(provider),
+                                  ),
+
+                                  const SizedBox(height: 32),
+
+                                  // Mastery level distribution
+                                  SlideInFromBottom(
+                                    delay: const Duration(milliseconds: 200),
+                                    child: _buildSectionTitle(
+                                      'Phân Bố Trình Độ',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SlideInFromBottom(
+                                    delay: const Duration(milliseconds: 300),
+                                    child: _buildMasteryDistribution(provider),
+                                  ),
+
+                                  const SizedBox(height: 32),
+
+                                  // Progress chart
+                                  SlideInFromBottom(
+                                    delay: const Duration(milliseconds: 400),
+                                    child: _buildSectionTitle(
+                                      'Tiến Độ Học Tập',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SlideInFromBottom(
+                                    delay: const Duration(milliseconds: 500),
+                                    child: _buildProgressChart(provider),
+                                  ),
+
+                                  const SizedBox(height: 32),
+
+                                  // Learning insights
+                                  SlideInFromBottom(
+                                    delay: const Duration(milliseconds: 600),
+                                    child: _buildSectionTitle(
+                                      'Thông Tin Chi Tiết',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SlideInFromBottom(
+                                    delay: const Duration(milliseconds: 700),
+                                    child: _buildInsights(provider),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const AppFooter(),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -116,7 +197,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return Text(
       title,
       style: const TextStyle(
-        color: Colors.white,
+        color: AppColors.textPrimary,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
@@ -126,37 +207,42 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Widget _buildOverviewCards(VocabularyProvider provider) {
     final stats = provider.statistics;
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
+    return Row(
       children: [
-        _buildStatCard(
-          icon: Icons.library_books,
-          label: 'Tổng Từ',
-          value: '${stats['totalWords'] ?? 0}',
-          color: const Color(0xFF0EA5E9),
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.library_books,
+            label: 'Tổng Từ Vựng',
+            value: '${stats['totalWords'] ?? 0}',
+            color: AppColors.accent,
+          ),
         ),
-        _buildStatCard(
-          icon: Icons.new_releases,
-          label: 'Từ Mới (7 ngày)',
-          value: '${stats['newWordsThisWeek'] ?? 0}',
-          color: Colors.green,
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.new_releases,
+            label: 'Từ Mới (7 ngày)',
+            value: '${stats['newWordsThisWeek'] ?? 0}',
+            color: AppColors.success,
+          ),
         ),
-        _buildStatCard(
-          icon: Icons.refresh,
-          label: 'Cần Ôn Tập',
-          value: '${stats['wordsNeedingReview'] ?? 0}',
-          color: Colors.orange,
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.refresh,
+            label: 'Cần Ôn Tập',
+            value: '${stats['wordsNeedingReview'] ?? 0}',
+            color: AppColors.warning,
+          ),
         ),
-        _buildStatCard(
-          icon: Icons.repeat,
-          label: 'Số Lần Ôn',
-          value: '${stats['totalReviews'] ?? 0}',
-          color: Colors.purple,
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.repeat,
+            label: 'Tổng Lượt Ôn',
+            value: '${stats['totalReviews'] ?? 0}',
+            color: AppColors.primary,
+          ),
         ),
       ],
     );
@@ -168,44 +254,55 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     required String value,
     required Color color,
   }) {
-    return AnimatedCard(
-      color: const Color(0xFF1E1E1E),
-      borderRadius: BorderRadius.circular(16),
-      padding: const EdgeInsets.all(16),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [const Color(0xFF1E1E1E), color.withValues(alpha: 0.1)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Icon(icon, color: color, size: 32),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 32),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                Text(
-                  label,
-                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -220,32 +317,31 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Pie chart
-          SizedBox(
-            height: 200,
-            child: CustomPaint(
-              painter: PieChartPainter(distribution, totalWords),
-              child: Container(),
+          const Text(
+            'Phân bố theo trình độ',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
           ),
-
           const SizedBox(height: 24),
 
-          // Legend
+          // Legend bars
           ...List.generate(5, (level) {
             final count = distribution[level] ?? 0;
-            final percentage = totalWords > 0
-                ? (count / totalWords * 100).toStringAsFixed(1)
-                : '0.0';
+            final percentage = totalWords > 0 ? (count / totalWords) : 0.0;
 
-            return _buildLegendItem(
+            return _buildLevelBar(
               color: Color(
                 int.parse(
                   SavedWord.getMasteryColor(level).replaceFirst('#', '0xFF'),
@@ -253,7 +349,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               ),
               label: SavedWord.getMasteryLabel(level),
               count: count,
-              percentage: '$percentage%',
+              percentage: percentage,
             );
           }),
         ],
@@ -261,37 +357,53 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildLegendItem({
+  Widget _buildLevelBar({
     required Color color,
     required String label,
     required int count,
-    required String percentage,
+    required double percentage,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                '$count từ (${(percentage * 100).toStringAsFixed(1)}%)',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Container(
-            width: 16,
-            height: 16,
+            height: 8,
             decoration: BoxDecoration(
-              color: color,
+              color: AppColors.border,
               borderRadius: BorderRadius.circular(4),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-            ),
-          ),
-          Text(
-            '$count từ ($percentage)',
-            style: TextStyle(
-              color: Colors.grey[400],
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            child: FractionallySizedBox(
+              widthFactor: percentage,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
             ),
           ),
         ],
@@ -303,70 +415,92 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final masteryPercentage = provider.getMasteryPercentage();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Circular progress
-          SizedBox(
-            height: 200,
-            width: 200,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  height: 200,
-                  width: 200,
-                  child: CircularProgressIndicator(
-                    value: masteryPercentage / 100,
-                    strokeWidth: 20,
-                    backgroundColor: Colors.grey[800],
-                    color: const Color(0xFF4D96FF),
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${masteryPercentage.toStringAsFixed(1)}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
+                    const Text(
+                      'Tiến độ học tập',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const SizedBox(height: 8),
                     Text(
-                      'Thành thạo',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                      'Tổng cộng ${provider.totalWords} từ vựng',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Bars for each level
-          ...List.generate(5, (level) {
-            final count = provider.getWordCountByMastery(level);
-            final total = provider.totalWords;
-            final percentage = total > 0 ? count / total : 0.0;
-
-            return _buildProgressBar(
-              label: SavedWord.getMasteryLabel(level),
-              count: count,
-              percentage: percentage,
-              color: Color(
-                int.parse(
-                  SavedWord.getMasteryColor(level).replaceFirst('#', '0xFF'),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.trending_up,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${masteryPercentage.toStringAsFixed(1)}% thành thạo',
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          }),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Progress bar
+          Container(
+            height: 12,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: FractionallySizedBox(
+              widthFactor: masteryPercentage / 100,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.accent, AppColors.primary],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -388,11 +522,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
               ),
               Text(
                 '$count từ',
-                style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -402,7 +542,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             child: LinearProgressIndicator(
               value: percentage,
               minHeight: 8,
-              backgroundColor: Colors.grey[800],
+              backgroundColor: AppColors.border,
               color: color,
             ),
           ),
@@ -417,85 +557,166 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final avgReviews = stats['averageReviewCount'] as double? ?? 0.0;
     final wordsNeedingReview = stats['wordsNeedingReview'] as int? ?? 0;
 
-    return Column(
-      children: [
-        _buildInsightCard(
-          icon: Icons.trending_up,
-          title: 'Tốc Độ Học',
-          description: totalWords > 0
-              ? 'Bạn đã học trung bình ${avgReviews.toStringAsFixed(1)} lần/từ'
-              : 'Chưa có dữ liệu',
-          color: Colors.green,
-        ),
-
-        const SizedBox(height: 12),
-
-        _buildInsightCard(
-          icon: Icons.lightbulb_outline,
-          title: 'Gợi Ý',
-          description: wordsNeedingReview > 0
-              ? 'Bạn có $wordsNeedingReview từ cần ôn tập. Hãy dùng Flashcard!'
-              : 'Tuyệt vời! Bạn đã ôn tập đầy đủ.',
-          color: wordsNeedingReview > 0 ? Colors.orange : Colors.green,
-        ),
-
-        const SizedBox(height: 12),
-
-        _buildInsightCard(
-          icon: Icons.emoji_events,
-          title: 'Thành Tích',
-          description: provider.getMasteryPercentage() >= 50
-              ? 'Tuyệt vời! Bạn đã thành thạo hơn 50% từ vựng!'
-              : 'Tiếp tục phấn đấu để đạt 50% từ thành thạo!',
-          color: const Color(0xFFFFD700),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInsightCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required Color color,
-  }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
+          const Text(
+            'Gợi ý học tập',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
-            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+          const SizedBox(height: 20),
+
+          // Tốc độ học
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                child: const Icon(
+                  Icons.trending_up,
+                  color: AppColors.success,
+                  size: 20,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tốc độ học',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      totalWords > 0
+                          ? 'Trung bình ${avgReviews.toStringAsFixed(1)} lần/từ'
+                          : 'Chưa có dữ liệu',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Gợi ý ôn tập
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color:
+                      (wordsNeedingReview > 0
+                              ? AppColors.warning
+                              : AppColors.success)
+                          .withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.lightbulb_outline,
+                  color: wordsNeedingReview > 0
+                      ? AppColors.warning
+                      : AppColors.success,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ôn tập',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      wordsNeedingReview > 0
+                          ? '$wordsNeedingReview từ cần ôn tập'
+                          : 'Đã ôn tập đầy đủ',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Thành tích
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.emoji_events,
+                  color: AppColors.accent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Thành tích',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      provider.getMasteryPercentage() >= 50
+                          ? 'Đã thành thạo hơn 50% từ vựng'
+                          : 'Tiếp tục học để đạt 50%',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -506,17 +727,24 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return Container(
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.bar_chart, size: 64, color: Colors.grey[600]),
+            const Icon(
+              Icons.bar_chart,
+              size: 64,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -568,7 +796,7 @@ class PieChartPainter extends CustomPainter {
 
     // Vẽ vòng tròn trắng ở giữa để tạo hiệu ứng donut
     final innerPaint = Paint()
-      ..color = const Color(0xFF1E1E1E)
+      ..color = AppColors.backgroundCard
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(center, radius * 0.5, innerPaint);

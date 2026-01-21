@@ -24,7 +24,7 @@ class RecommendationRepository {
           .get();
 
       final movies = snapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
+          .map((doc) => Movie.fromJson(doc.data()))
           .where((movie) => movie.id != movieId) // Loại bỏ chính phim đó
           .toList();
 
@@ -37,7 +37,7 @@ class RecommendationRepository {
 
       return movies.take(limit).toList();
     } catch (e) {
-      print('Error getting similar movies: $e');
+      print('Lỗi khi lấy phim tương tự: $e');
       return [];
     }
   }
@@ -56,11 +56,9 @@ class RecommendationRepository {
           .limit(limit)
           .get();
 
-      return snapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      return snapshot.docs.map((doc) => Movie.fromJson(doc.data())).toList();
     } catch (e) {
-      print('Error getting trending movies: $e');
+      print('Lỗi khi lấy phim đang thịnh hành: $e');
       return [];
     }
   }
@@ -76,157 +74,31 @@ class RecommendationRepository {
           .limit(limit)
           .get();
 
-      return snapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      return snapshot.docs.map((doc) => Movie.fromJson(doc.data())).toList();
     } catch (e) {
-      print('Error getting popular movies: $e');
+      print('Lỗi khi lấy phim phổ biến: $e');
       return [];
     }
   }
 
-  /// Recommendations dựa trên watch history
+  /// Tạm thời bỏ getPersonalizedRecommendations do chưa có watch history
+  /// Sẽ trả về trending movies thay thế
   Future<List<Movie>> getPersonalizedRecommendations({
     required String userId,
     int limit = 10,
   }) async {
-    try {
-      // Lấy watch history của user
-      final historySnapshot = await _firestore
-          .collection('watch_history')
-          .where('userId', isEqualTo: userId)
-          .orderBy('lastWatchedAt', descending: true)
-          .limit(20)
-          .get();
-
-      if (historySnapshot.docs.isEmpty) {
-        // Nếu chưa có history, return trending
-        return await _getTrendingMovies(limit: limit);
-      }
-
-      // Lấy movieIds từ history
-      final watchedMovieIds = historySnapshot.docs
-          .map((doc) => doc['movieId'] as String)
-          .toList();
-
-      // Lấy thông tin các movies đã xem
-      final moviesSnapshot = await _firestore
-          .collection('movies')
-          .where(
-            FieldPath.documentId,
-            whereIn: watchedMovieIds.take(10).toList(),
-          )
-          .get();
-
-      // Collect tất cả genres user đã xem
-      final allGenres = <String>{};
-      for (final doc in moviesSnapshot.docs) {
-        final movie = Movie.fromJson(doc.data() as Map<String, dynamic>);
-        allGenres.addAll(movie.genres);
-      }
-
-      if (allGenres.isEmpty) {
-        return await _getTrendingMovies(limit: limit);
-      }
-
-      // Recommend movies với genres tương tự (nhưng chưa xem)
-      final recommendSnapshot = await _firestore
-          .collection('movies')
-          .where('genres', arrayContainsAny: allGenres.take(10).toList())
-          .limit(limit * 3)
-          .get();
-
-      final recommendations = recommendSnapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
-          .where((movie) => !watchedMovieIds.contains(movie.id))
-          .toList();
-
-      // Sort theo số genre match
-      recommendations.sort((a, b) {
-        final aMatches = a.genres.where((g) => allGenres.contains(g)).length;
-        final bMatches = b.genres.where((g) => allGenres.contains(g)).length;
-        if (bMatches != aMatches) return bMatches.compareTo(aMatches);
-        // Secondary sort by rating
-        return b.rating.compareTo(a.rating);
-      });
-
-      return recommendations.take(limit).toList();
-    } catch (e) {
-      print('Error getting personalized recommendations: $e');
-      return await _getTrendingMovies(limit: limit);
-    }
+    // Return trending movies instead
+    return await _getTrendingMovies(limit: limit);
   }
 
-  /// Recommendations dựa trên ratings của user
+  /// Tạm thời bỏ getRecommendationsFromRatings vì chưa có rating UI
+  /// Sẽ trả về trending movies thay thế
   Future<List<Movie>> getRecommendationsFromRatings({
     required String userId,
     int limit = 10,
   }) async {
-    try {
-      // Lấy movies user đã rate >= 4 stars
-      final ratingsSnapshot = await _firestore
-          .collection('movie_ratings')
-          .where('userId', isEqualTo: userId)
-          .where('rating', isGreaterThanOrEqualTo: 4.0)
-          .limit(20)
-          .get();
-
-      if (ratingsSnapshot.docs.isEmpty) {
-        return await _getTrendingMovies(limit: limit);
-      }
-
-      // Lấy movieIds
-      final likedMovieIds = ratingsSnapshot.docs
-          .map((doc) => doc['movieId'] as String)
-          .toList();
-
-      // Lấy thông tin movies
-      final moviesSnapshot = await _firestore
-          .collection('movies')
-          .where(FieldPath.documentId, whereIn: likedMovieIds.take(10).toList())
-          .get();
-
-      // Collect genres
-      final favoriteGenres = <String>{};
-      for (final doc in moviesSnapshot.docs) {
-        final movie = Movie.fromJson(doc.data() as Map<String, dynamic>);
-        favoriteGenres.addAll(movie.genres);
-      }
-
-      if (favoriteGenres.isEmpty) {
-        return await _getTrendingMovies(limit: limit);
-      }
-
-      // Recommend similar movies
-      final recommendSnapshot = await _firestore
-          .collection('movies')
-          .where('genres', arrayContainsAny: favoriteGenres.take(10).toList())
-          .where('rating', isGreaterThanOrEqualTo: 3.5)
-          .limit(limit * 3)
-          .get();
-
-      final recommendations = recommendSnapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
-          .where((movie) => !likedMovieIds.contains(movie.id))
-          .toList();
-
-      // Sort
-      recommendations.sort((a, b) {
-        final aMatches = a.genres
-            .where((g) => favoriteGenres.contains(g))
-            .length;
-        final bMatches = b.genres
-            .where((g) => favoriteGenres.contains(g))
-            .length;
-        if (bMatches != aMatches) return bMatches.compareTo(aMatches);
-        return b.rating.compareTo(a.rating);
-      });
-
-      return recommendations.take(limit).toList();
-    } catch (e) {
-      print('Error getting recommendations from ratings: $e');
-      return await _getTrendingMovies(limit: limit);
-    }
+    // Return trending movies instead
+    return await _getTrendingMovies(limit: limit);
   }
 
   /// New releases (phim mới nhất)
@@ -238,11 +110,9 @@ class RecommendationRepository {
           .limit(limit)
           .get();
 
-      return snapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      return snapshot.docs.map((doc) => Movie.fromJson(doc.data())).toList();
     } catch (e) {
-      print('Error getting new releases: $e');
+      print('Lỗi khi lấy phim mới phát hành: $e');
       return [];
     }
   }
@@ -257,11 +127,9 @@ class RecommendationRepository {
           .limit(limit)
           .get();
 
-      return snapshot.docs
-          .map((doc) => Movie.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      return snapshot.docs.map((doc) => Movie.fromJson(doc.data())).toList();
     } catch (e) {
-      print('Error getting top rated: $e');
+      print('Lỗi khi lấy phim được đánh giá cao: $e');
       return [];
     }
   }

@@ -36,7 +36,6 @@ dependencies:
   # Video Player
   video_player: ^2.8.2
   chewie: ^1.7.5
-  youtube_player_iframe: ^5.1.2
 
   # Navigation
   go_router: ^13.0.1
@@ -78,5 +77,4 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
-    - assets/animations/
     - assets/subtitles/

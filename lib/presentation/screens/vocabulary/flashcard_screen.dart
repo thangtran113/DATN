@@ -11,7 +11,7 @@ import '../../widgets/app_footer.dart';
 
 /// Màn hình flashcard - Redesigned to match templates
 class FlashcardScreen extends StatefulWidget {
-  const FlashcardScreen({Key? key}) : super(key: key);
+  const FlashcardScreen({super.key});
 
   @override
   State<FlashcardScreen> createState() => _FlashcardScreenState();
@@ -102,7 +102,7 @@ class _FlashcardScreenState extends State<FlashcardScreen> {
     final vocabularyProvider = context.read<VocabularyProvider>();
     final currentWord = _reviewWords[_currentIndex];
 
-    // Update mastery (assume user knows the word when pressing next)
+    // Cập nhật độ thạo (giả sử người dùng biết từ khi nhấn tiếp theo)
     await vocabularyProvider.updateMasteryLevel(currentWord.id, true);
 
     setState(() {
@@ -171,6 +171,47 @@ class _FlashcardScreenState extends State<FlashcardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
+    // Yêu cầu đăng nhập để truy cập flashcard
+    if (authProvider.user == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Column(
+          children: [
+            const AppHeader(),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.style_outlined,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Vui lòng đăng nhập để sử dụng flashcard',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.go('/login'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00BCD4),
+                      ),
+                      child: const Text('Đăng nhập'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(

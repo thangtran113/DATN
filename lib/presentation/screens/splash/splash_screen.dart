@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -25,12 +25,10 @@ class _SplashScreenState extends State<SplashScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.loadUserFromCache();
 
-    final isLoggedIn =
-        firebase_auth.FirebaseAuth.instance.currentUser != null &&
-        authProvider.user != null;
-
+    // Cho phép truy cập màn hình chính mà không cần xác thực
+    // Các tính năng yêu cầu xác thực sẽ kiểm tra trạng thái người dùng riêng biệt
     if (mounted) {
-      context.go(isLoggedIn ? '/home' : '/login');
+      context.go('/home');
     }
   }
 
@@ -42,22 +40,38 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo or app name
-            const Text(
-              'CineChill',
-              style: TextStyle(
-                color: Color(0xFFE50914),
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-              ),
+            // Logo
+            Image.network(
+              'logo.png',
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                // Dự phòng văn bản nếu logo không tải được
+                return const Text(
+                  'CineChill',
+                  style: TextStyle(
+                    color: Color(0xFF00BCD4),
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 40),
+            // Chỉ báo đang tải
+            const CircularProgressIndicator(
+              color: Color(0xFF00BCD4),
+              strokeWidth: 3,
             ),
             const SizedBox(height: 24),
-            // Loading indicator
-            const CircularProgressIndicator(color: Color(0xFFE50914)),
-            const SizedBox(height: 16),
             Text(
-              'Loading...',
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
+              'Đang tải...',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

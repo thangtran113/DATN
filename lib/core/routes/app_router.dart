@@ -1,24 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../presentation/providers/auth_provider.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/auth/register_screen.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/movie/movie_list_screen.dart';
 import '../../presentation/screens/movie/movie_detail_screen.dart';
-import '../../presentation/screens/movie/search_screen.dart';
 import '../../presentation/screens/player/video_player_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/vocabulary/vocabulary_list_screen.dart';
 import '../../presentation/screens/vocabulary/flashcard_screen.dart';
 import '../../presentation/screens/vocabulary/quiz_screen.dart';
 import '../../presentation/screens/statistics/statistics_screen.dart';
-import '../../presentation/screens/watchlist/watchlist_screen.dart';
-import '../../presentation/screens/history/watch_history_screen.dart';
+import '../../presentation/screens/watchlist/favorite_screen.dart';
 import '../../presentation/screens/admin/admin_dashboard_page.dart';
 import '../../presentation/screens/admin/admin_movie_management_page.dart';
 import '../../presentation/screens/admin/admin_user_management_page.dart';
 
 class AppRouter {
+  // Admin guard - check if user is admin
+  static String? _adminGuard(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+
+    if (user == null) {
+      return '/login';
+    }
+
+    if (!user.isAdmin) {
+      return '/';
+    }
+
+    return null; // Allow access
+  }
+
   // Custom page transition builder for smooth animations
   static CustomTransitionPage _buildPageWithFadeTransition({
     required Widget child,
@@ -84,14 +100,6 @@ class AppRouter {
         },
       ),
       GoRoute(
-        path: '/search',
-        name: 'search',
-        pageBuilder: (context, state) => _buildPageWithFadeTransition(
-          child: const SearchScreen(),
-          state: state,
-        ),
-      ),
-      GoRoute(
         path: '/player/:id',
         name: 'player',
         pageBuilder: (context, state) {
@@ -143,24 +151,17 @@ class AppRouter {
         ),
       ),
       GoRoute(
-        path: '/watchlist',
-        name: 'watchlist',
+        path: '/favorites',
+        name: 'favorites',
         pageBuilder: (context, state) => _buildPageWithFadeTransition(
-          child: const WatchlistScreen(),
-          state: state,
-        ),
-      ),
-      GoRoute(
-        path: '/history',
-        name: 'history',
-        pageBuilder: (context, state) => _buildPageWithFadeTransition(
-          child: const WatchHistoryScreen(),
+          child: const FavoriteScreen(),
           state: state,
         ),
       ),
       GoRoute(
         path: '/admin',
         name: 'admin',
+        redirect: (context, state) => _adminGuard(context),
         pageBuilder: (context, state) => _buildPageWithFadeTransition(
           child: const AdminDashboardPage(),
           state: state,
@@ -169,6 +170,7 @@ class AppRouter {
       GoRoute(
         path: '/admin/movies',
         name: 'admin-movies',
+        redirect: (context, state) => _adminGuard(context),
         pageBuilder: (context, state) => _buildPageWithFadeTransition(
           child: const AdminMovieManagementPage(),
           state: state,
@@ -177,6 +179,7 @@ class AppRouter {
       GoRoute(
         path: '/admin/users',
         name: 'admin-users',
+        redirect: (context, state) => _adminGuard(context),
         pageBuilder: (context, state) => _buildPageWithFadeTransition(
           child: const AdminUserManagementPage(),
           state: state,

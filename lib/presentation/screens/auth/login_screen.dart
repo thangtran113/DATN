@@ -286,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   },
                                   decoration: const InputDecoration(
                                     labelText: 'Tên đăng nhập',
-                                    prefixIcon: const Icon(
+                                    prefixIcon: Icon(
                                       Icons.person_outline_rounded,
                                     ),
                                   ),

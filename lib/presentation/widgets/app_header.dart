@@ -5,10 +5,76 @@ import '../providers/auth_provider.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
-  const AppHeader({Key? key}) : super(key: key);
+  const AppHeader({super.key});
 
   @override
   Size get preferredSize => const Size.fromHeight(60);
+
+  void _showLoginRequiredDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text(
+            'Yêu cầu đăng nhập',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'Bạn cần đăng nhập để sử dụng tính năng này',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                context.go('/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00BCD4),
+              ),
+              child: const Text('Đăng nhập'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _showLogoutConfirmDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text(
+            'Xác nhận đăng xuất',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'Bạn có chắc chắn muốn đăng xuất?',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Đăng xuất'),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,14 +113,17 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
           // Navigation items
           _buildNavItem(context, 'Trang Chủ', () => context.go('/home')),
-          _buildNavItem(
-            context,
-            'Phim Yêu Thích',
-            () => context.go('/watchlist'),
-          ),
+          _buildNavItem(context, 'Phim Yêu Thích', () {
+            // Require login for favorites
+            if (authProvider.user == null) {
+              _showLoginRequiredDialog(context);
+            } else {
+              context.go('/favorites');
+            }
+          }),
 
           // Learning dropdown
-          _buildLearningDropdown(context),
+          _buildLearningDropdown(context, authProvider),
         ],
       ),
       actions: [
@@ -79,7 +148,10 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  Widget _buildLearningDropdown(BuildContext context) {
+  Widget _buildLearningDropdown(
+    BuildContext context,
+    AuthProvider authProvider,
+  ) {
     return PopupMenuButton<String>(
       offset: const Offset(0, 50),
       child: Padding(
@@ -122,6 +194,12 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
         ),
       ],
       onSelected: (value) {
+        // Require login for learning features
+        if (authProvider.user == null) {
+          _showLoginRequiredDialog(context);
+          return;
+        }
+
         switch (value) {
           case 'vocabulary':
             context.go('/vocabulary');
@@ -135,6 +213,26 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _buildProfileMenu(BuildContext context, AuthProvider authProvider) {
+    // If user is not logged in, show login button
+    if (authProvider.user == null) {
+      return TextButton.icon(
+        onPressed: () => context.go('/login'),
+        icon: const Icon(Icons.login, color: Color(0xFF00BCD4)),
+        label: const Text(
+          'Đăng nhập',
+          style: TextStyle(
+            color: Color(0xFF00BCD4),
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+      );
+    }
+
+    // If user is logged in, show profile menu
     return PopupMenuButton<String>(
       offset: const Offset(0, 50),
       child: Padding(
@@ -207,10 +305,13 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
             context.go('/profile');
             break;
           case 'logout':
-            await AuthRepository().signOut();
-            authProvider.setUser(null);
-            if (context.mounted) {
-              context.go('/login');
+            final confirmed = await _showLogoutConfirmDialog(context);
+            if (confirmed) {
+              await AuthRepository().signOut();
+              authProvider.setUser(null);
+              if (context.mounted) {
+                context.go('/login');
+              }
             }
             break;
         }

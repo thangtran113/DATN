@@ -139,28 +139,6 @@ class MovieRepository {
     }
   }
 
-  /// Thêm phim vào danh sách xem sau
-  Future<void> addToWatchlist(String userId, String movieId) async {
-    try {
-      await _firestore.collection('users').doc(userId).update({
-        'watchlist': FieldValue.arrayUnion([movieId]),
-      });
-    } catch (e) {
-      throw Exception('Không thể thêm vào watchlist: $e');
-    }
-  }
-
-  /// Xóa phim khỏi danh sách xem sau
-  Future<void> removeFromWatchlist(String userId, String movieId) async {
-    try {
-      await _firestore.collection('users').doc(userId).update({
-        'watchlist': FieldValue.arrayRemove([movieId]),
-      });
-    } catch (e) {
-      throw Exception('Không thể xóa khỏi watchlist: $e');
-    }
-  }
-
   /// Thêm phim vào yêu thích
   Future<void> addToFavorites(String userId, String movieId) async {
     try {
@@ -180,24 +158,6 @@ class MovieRepository {
       });
     } catch (e) {
       throw Exception('Không thể xóa khỏi yêu thích: $e');
-    }
-  }
-
-  /// Lấy danh sách phim xem sau của user
-  Future<List<Movie>> getUserWatchlist(String userId) async {
-    try {
-      final userDoc = await _firestore.collection('users').doc(userId).get();
-      final watchlist = List<String>.from(userDoc.data()?['watchlist'] ?? []);
-
-      if (watchlist.isEmpty) return [];
-
-      final movies = await Future.wait(
-        watchlist.map((movieId) => getMovieById(movieId)),
-      );
-
-      return movies.whereType<Movie>().toList();
-    } catch (e) {
-      throw Exception('Không thể tải watchlist: $e');
     }
   }
 

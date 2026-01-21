@@ -11,12 +11,12 @@ class CommentInput extends StatefulWidget {
   final VoidCallback? onCommentAdded;
 
   const CommentInput({
-    Key? key,
+    super.key,
     required this.movieId,
     this.parentCommentId,
     this.replyToUserName,
     this.onCommentAdded,
-  }) : super(key: key);
+  });
 
   @override
   State<CommentInput> createState() => _CommentInputState();
@@ -36,7 +36,7 @@ class _CommentInputState extends State<CommentInput> {
       });
     });
 
-    // Tự động thêm @username khi reply
+    // Tự động thêm @username khi trả lời
     if (widget.replyToUserName != null) {
       _controller.text = '@${widget.replyToUserName} ';
       // Đặt cursor ở cuối
@@ -92,7 +92,7 @@ class _CommentInputState extends State<CommentInput> {
             ),
             const SizedBox(width: 12),
             Text(
-              'Please login to comment',
+              'Vui lòng đăng nhập để bình luận',
               style: TextStyle(
                 color: Colors.white.withOpacity(0.6),
                 fontSize: 14,
@@ -118,7 +118,7 @@ class _CommentInputState extends State<CommentInput> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Reply indicator
+          // Chỉ báo trả lời
           if (widget.replyToUserName != null) ...[
             Row(
               children: [
@@ -129,7 +129,7 @@ class _CommentInputState extends State<CommentInput> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Replying to ${widget.replyToUserName}',
+                  'Đang trả lời ${widget.replyToUserName}',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.6),
                     fontSize: 13,
@@ -174,8 +174,8 @@ class _CommentInputState extends State<CommentInput> {
                   maxLines: null,
                   decoration: InputDecoration(
                     hintText: widget.parentCommentId != null
-                        ? 'Write a reply...'
-                        : 'Write a comment...',
+                        ? 'Viết phản hồi...'
+                        : 'Viết bình luận...',
                     hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
@@ -188,7 +188,7 @@ class _CommentInputState extends State<CommentInput> {
             ],
           ),
 
-          // Submit button
+          // Nút gửi
           if (_controller.text.trim().isNotEmpty) ...[
             const SizedBox(height: 12),
             Row(
@@ -201,7 +201,7 @@ class _CommentInputState extends State<CommentInput> {
                       _focusNode.unfocus();
                       widget.onCommentAdded?.call();
                     },
-                    child: const Text('Cancel'),
+                    child: const Text('Hủy'),
                   ),
                 const SizedBox(width: 8),
                 ElevatedButton(
@@ -229,7 +229,9 @@ class _CommentInputState extends State<CommentInput> {
                           ),
                         )
                       : Text(
-                          widget.parentCommentId != null ? 'Reply' : 'Comment',
+                          widget.parentCommentId != null
+                              ? 'Trả lời'
+                              : 'Bình luận',
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                 ),

@@ -35,11 +35,11 @@ class FadeInWidget extends StatefulWidget {
   final Duration duration;
 
   const FadeInWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.delay = Duration.zero,
     this.duration = AppAnimations.fadeIn,
-  }) : super(key: key);
+  });
 
   @override
   State<FadeInWidget> createState() => _FadeInWidgetState();
@@ -83,11 +83,11 @@ class SlideInFromBottom extends StatefulWidget {
   final Duration duration;
 
   const SlideInFromBottom({
-    Key? key,
+    super.key,
     required this.child,
     this.delay = Duration.zero,
     this.duration = AppAnimations.slideIn,
-  }) : super(key: key);
+  });
 
   @override
   State<SlideInFromBottom> createState() => _SlideInFromBottomState();
@@ -143,11 +143,11 @@ class ScaleInAnimation extends StatefulWidget {
   final Duration duration;
 
   const ScaleInAnimation({
-    Key? key,
+    super.key,
     required this.child,
     this.delay = Duration.zero,
     this.duration = AppAnimations.scaleIn,
-  }) : super(key: key);
+  });
 
   @override
   State<ScaleInAnimation> createState() => _ScaleInAnimationState();
@@ -201,13 +201,13 @@ class AnimatedCard extends StatefulWidget {
   final BorderRadius? borderRadius;
 
   const AnimatedCard({
-    Key? key,
+    super.key,
     required this.child,
     this.onTap,
     this.padding,
     this.color,
     this.borderRadius,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedCard> createState() => _AnimatedCardState();
@@ -241,13 +241,13 @@ class AnimatedButton extends StatefulWidget {
   final BorderRadius? borderRadius;
 
   const AnimatedButton({
-    Key? key,
+    super.key,
     required this.child,
     this.onPressed,
     this.backgroundColor,
     this.padding,
     this.borderRadius,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedButton> createState() => _AnimatedButtonState();
@@ -302,12 +302,12 @@ class StaggeredListAnimation extends StatelessWidget {
   final Axis scrollDirection;
 
   const StaggeredListAnimation({
-    Key? key,
+    super.key,
     required this.itemCount,
     required this.itemBuilder,
     this.delayBetweenItems = const Duration(milliseconds: 50),
     this.scrollDirection = Axis.vertical,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -331,11 +331,11 @@ class ShimmerLoading extends StatefulWidget {
   final BorderRadius? borderRadius;
 
   const ShimmerLoading({
-    Key? key,
+    super.key,
     required this.width,
     required this.height,
     this.borderRadius,
-  }) : super(key: key);
+  });
 
   @override
   State<ShimmerLoading> createState() => _ShimmerLoadingState();

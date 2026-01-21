@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/movie.dart';
 import '../../providers/movie_provider.dart';
@@ -7,12 +8,11 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/comments_section.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_footer.dart';
-import '../player/video_player_screen.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final String movieId;
 
-  const MovieDetailScreen({Key? key, required this.movieId}) : super(key: key);
+  const MovieDetailScreen({super.key, required this.movieId});
 
   @override
   State<MovieDetailScreen> createState() => _MovieDetailScreenState();
@@ -54,7 +54,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading related movies: $e');
+      debugPrint('Lỗi khi tải phim liên quan: $e');
     } finally {
       setState(() => isLoadingRelated = false);
     }
@@ -163,14 +163,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                 children: [
                                   ElevatedButton.icon(
                                     onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              VideoPlayerScreen(
-                                                movieId: movie.id,
-                                              ),
-                                        ),
-                                      );
+                                      context.go('/player/${movie.id}');
                                     },
                                     icon: const Icon(
                                       Icons.play_arrow,
@@ -241,6 +234,80 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               ),
                               const SizedBox(height: 32),
 
+                              // Director Section
+                              if (movie.director.isNotEmpty) ...[
+                                const Text(
+                                  'Đạo Diễn',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.backgroundCard,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: AppColors.primary.withOpacity(
+                                            0.2,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.primary,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            movie.director[0].toUpperCase(),
+                                            style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              movie.director,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            const Text(
+                                              'Đạo diễn',
+                                              style: TextStyle(
+                                                color: Colors.grey,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                              ],
+
                               // Cast Section
                               if (movie.cast.isNotEmpty) ...[
                                 const Text(
@@ -253,7 +320,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 SizedBox(
-                                  height: 140,
+                                  height: 150,
                                   child: ListView.separated(
                                     scrollDirection: Axis.horizontal,
                                     itemCount: movie.cast.length,
@@ -261,6 +328,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                         const SizedBox(width: 24),
                                     itemBuilder: (context, index) {
                                       return Column(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Container(
                                             width: 96,
@@ -285,15 +353,17 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(height: 12),
+                                          const SizedBox(height: 8),
                                           SizedBox(
                                             width: 120,
                                             child: Text(
                                               movie.cast[index],
                                               textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
                                                 color: Colors.white,
-                                                fontSize: 14,
+                                                fontSize: 13,
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -428,6 +498,35 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
     try {
       if (isInFavorites) {
+        // Hiển thị dialog xác nhận khi bỏ thích
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF1A2F47),
+            title: const Text(
+              'Xác nhận bỏ thích',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              'Bạn có chắc chắn muốn bỏ phim này khỏi danh sách yêu thích?',
+              style: TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Bỏ thích'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed != true) return;
+
         await movieProvider.removeFromFavorites(authProvider.user!.id, movieId);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

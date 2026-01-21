@@ -12,11 +12,11 @@ class CommentCard extends StatefulWidget {
   final bool showReplies;
 
   const CommentCard({
-    Key? key,
+    super.key,
     required this.comment,
     this.onReply,
     this.showReplies = true,
-  }) : super(key: key);
+  });
 
   @override
   State<CommentCard> createState() => _CommentCardState();
@@ -90,7 +90,7 @@ class _CommentCardState extends State<CommentCard> {
                         if (widget.comment.isEdited) ...[
                           const SizedBox(width: 6),
                           Text(
-                            '(edited)',
+                            '(đã chỉnh sửa)',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.4),
                               fontSize: 12,
@@ -101,7 +101,7 @@ class _CommentCardState extends State<CommentCard> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      timeago.format(widget.comment.createdAt),
+                      timeago.format(widget.comment.createdAt, locale: 'vi'),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.5),
                         fontSize: 12,
@@ -142,7 +142,7 @@ class _CommentCardState extends State<CommentCard> {
                           ),
                           const SizedBox(width: 8),
                           const Text(
-                            'Edit',
+                            'Chỉnh sửa',
                             style: TextStyle(color: Colors.white),
                           ),
                         ],
@@ -154,7 +154,7 @@ class _CommentCardState extends State<CommentCard> {
                         children: [
                           Icon(Icons.delete, size: 18, color: Colors.red),
                           SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
+                          Text('Xóa', style: TextStyle(color: Colors.red)),
                         ],
                       ),
                     ),
@@ -168,7 +168,7 @@ class _CommentCardState extends State<CommentCard> {
                     size: 20,
                   ),
                   onPressed: () => _showReportDialog(context, commentProvider),
-                  tooltip: 'Report',
+                  tooltip: 'Báo cáo',
                 ),
             ],
           ),
@@ -184,7 +184,7 @@ class _CommentCardState extends State<CommentCard> {
                   style: const TextStyle(color: Colors.white),
                   maxLines: null,
                   decoration: InputDecoration(
-                    hintText: 'Edit your comment...',
+                    hintText: 'Chỉnh sửa bình luận...',
                     hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.05),
@@ -202,7 +202,7 @@ class _CommentCardState extends State<CommentCard> {
                       onPressed: () {
                         setState(() => _isEditing = false);
                       },
-                      child: const Text('Cancel'),
+                      child: const Text('Hủy'),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
@@ -221,7 +221,7 @@ class _CommentCardState extends State<CommentCard> {
                         backgroundColor: const Color(0xFF8FDADB),
                       ),
                       child: const Text(
-                        'Save',
+                        'Lưu',
                         style: TextStyle(color: Colors.black),
                       ),
                     ),
@@ -310,7 +310,7 @@ class _CommentCardState extends State<CommentCard> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Reply',
+                          'Trả lời',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.6),
                             fontSize: 13,
@@ -348,7 +348,7 @@ class _CommentCardState extends State<CommentCard> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${widget.comment.replyCount} ${widget.comment.replyCount == 1 ? 'reply' : 'replies'}',
+                          '${widget.comment.replyCount} phản hồi',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.6),
                             fontSize: 13,
@@ -404,17 +404,17 @@ class _CommentCardState extends State<CommentCard> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A2F47),
         title: const Text(
-          'Delete Comment',
+          'Xóa bình luận',
           style: TextStyle(color: Colors.white),
         ),
         content: const Text(
-          'Are you sure you want to delete this comment? This action cannot be undone.',
+          'Bạn có chắc chắn muốn xóa bình luận này? Hành động này không thể hoàn tác.',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Hủy'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -422,7 +422,7 @@ class _CommentCardState extends State<CommentCard> {
               await provider.deleteComment(widget.comment.id);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Xóa'),
           ),
         ],
       ),
@@ -435,17 +435,17 @@ class _CommentCardState extends State<CommentCard> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A2F47),
         title: const Text(
-          'Report Comment',
+          'Báo cáo bình luận',
           style: TextStyle(color: Colors.white),
         ),
         content: const Text(
-          'Are you sure you want to report this comment as inappropriate?',
+          'Bạn có chắc chắn muốn báo cáo bình luận này là không phù hợp?',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Hủy'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -461,7 +461,7 @@ class _CommentCardState extends State<CommentCard> {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Report'),
+            child: const Text('Báo cáo'),
           ),
         ],
       ),
